@@ -27,10 +27,19 @@ use Throwable;
  */
 final class HistoryRepository
 {
+    /**
+     * Колонка появилась в схеме плагина версии 3.
+     *
+     * Модуль обязан работать и со старой базой: запрос несуществующей колонки
+     * роняет ВСЮ выборку, то есть обновление модуля без обновления плагина
+     * стоило бы пользователю всего раздела.
+     */
+    public const COLUMN_SPECTATOR = 'spectator_seconds';
+
     /** Колонки сессии, доступные всем. */
     public const SESSION_COLUMNS = [
         'id', 'steamid64', 'account_id', 'server_id', 'nickname',
-        'started_at', 'ended_at', 'duration_seconds', 'spectator_seconds', 'end_kind',
+        'started_at', 'ended_at', 'duration_seconds', 'end_kind',
         'connect_map', 'disconnect_map', 'disconnect_reason_name',
         'players_online', 'max_players', 'client_lang',
         'country_iso', 'country_name',
@@ -235,13 +244,9 @@ final class HistoryRepository
      */
     public function sessionsQuery(SessionFilter $filter, bool $withPii): SelectQuery
     {
-        $columns = self::SESSION_COLUMNS;
-
-        if ($withPii) {
-            $columns = array_merge($columns, self::PII_COLUMNS);
-        }
-
-        $query = $this->db()->select($columns)->from($this->table('sessions'));
+        $query = $this->db()
+            ->select($this->sessionColumns($withPii))
+            ->from($this->table('sessions'));
 
         return $this->applyFilter($query, $filter);
     }
@@ -651,14 +656,8 @@ final class HistoryRepository
 
     public function playerSessionsQuery(string $steamid64, bool $withPii): SelectQuery
     {
-        $columns = self::SESSION_COLUMNS;
-
-        if ($withPii) {
-            $columns = array_merge($columns, self::PII_COLUMNS);
-        }
-
         $query = $this->db()
-            ->select($columns)
+            ->select($this->sessionColumns($withPii))
             ->from($this->table('sessions'))
             ->where('steamid64', $steamid64);
 
@@ -694,6 +693,12 @@ final class HistoryRepository
      */
     public function playerSummary(string $steamid64): array
     {
+        // На схеме ниже 3-й колонки нет — подставляем 0, чтобы весь запрос
+        // не рухнул из-за одного поля.
+        $spectator = $this->hasSpectatorColumn()
+            ? 'COALESCE(SUM(`' . self::COLUMN_SPECTATOR . '`), 0)'
+            : '0';
+
         return $this->fetchOne(
             'SELECT COALESCE(SUM(`kills`), 0) AS `kills`,
                     COALESCE(SUM(`deaths`), 0) AS `deaths`,
@@ -709,7 +714,8 @@ final class HistoryRepository
                     COUNT(DISTINCT `country_iso`) AS `countries`,
                     SUM(CASE WHEN `end_kind` = ' . SessionFilter::END_KIND_STALE . " THEN 1 ELSE 0 END) AS `crashed`,
                     COALESCE(MAX(`players_online`), 0) AS `busiest`,
-                    COALESCE(SUM(`spectator_seconds`), 0) AS `spectator_seconds`
+                    COALESCE(SUM(`duration_seconds`), 0) AS `connected_seconds`,
+                    {$spectator} AS `spectator_seconds`
              FROM `{$this->table('sessions')}`
              WHERE `steamid64` = ?",
             [$steamid64]
@@ -939,6 +945,50 @@ final class HistoryRepository
     // =====================================================================
     // Внутреннее
     // =====================================================================
+
+    /**
+     * Есть ли в базе колонка времени вне игры (схема плагина >= 3).
+     *
+     * Результат кешируется: information_schema дешёвый, но спрашивать его
+     * на каждый рендер таблицы незачем. Схема меняется перезапуском игрового
+     * сервера, поэтому час — безопасное окно.
+     */
+    private function hasSpectatorColumn(): bool
+    {
+        $key = 'connecthistory.schema.' . $this->database . '.' . $this->prefix . '.spectator';
+
+        $probe = function (): bool {
+            $row = $this->fetchOne(
+                'SELECT COUNT(*) AS `n` FROM `information_schema`.`COLUMNS` '
+                . 'WHERE `TABLE_SCHEMA` = DATABASE() AND `TABLE_NAME` = ? AND `COLUMN_NAME` = ?',
+                [$this->table('sessions'), self::COLUMN_SPECTATOR]
+            );
+
+            return (int) ($row['n'] ?? 0) > 0;
+        };
+
+        try {
+            return (bool) cache()->callback($key, $probe, 3600);
+        } catch (Throwable) {
+            return $probe();
+        }
+    }
+
+    /**
+     * Список колонок сессии с учётом прав и версии схемы.
+     *
+     * @return array<int, string>
+     */
+    private function sessionColumns(bool $withPii): array
+    {
+        $columns = self::SESSION_COLUMNS;
+
+        if ($this->hasSpectatorColumn()) {
+            $columns[] = self::COLUMN_SPECTATOR;
+        }
+
+        return $withPii ? array_merge($columns, self::PII_COLUMNS) : $columns;
+    }
 
     private function db()
     {

@@ -18,6 +18,13 @@
                 <code class="ch-mono">{{ $steamid64 }}</code>
 
                 <div class="ch-profile__links">
+                    <span class="ch-profile__seen">
+                        {{ __('connecthistory.player.seen_between', [
+                            'first' => $fmt::time($player['first_seen'] ?? null, 'd.m.Y'),
+                            'last' => $fmt::time($player['last_seen'] ?? null),
+                        ]) }}
+                    </span>
+
                     <a href="{{ $identity['url'] }}" target="_blank" rel="noopener">
                         <x-icon path="ph.regular.arrow-square-out" />
                         {{ __('connecthistory.player.open_steam') }}
@@ -76,13 +83,6 @@
                 </span>
                 <span class="ch-profile__stat-label">{{ __('connecthistory.player.ping') }}</span>
             </div>
-
-            @if ((int) ($summary['spectator_seconds'] ?? 0) > 0)
-                <div class="ch-profile__stat">
-                    <span class="ch-profile__stat-value">{{ $fmt::duration($summary['spectator_seconds']) }}</span>
-                    <span class="ch-profile__stat-label">{{ __('connecthistory.player.spectator') }}</span>
-                </div>
-            @endif
 
             @if ((int) ($summary['crashed'] ?? 0) > 0)
                 <div class="ch-profile__stat">

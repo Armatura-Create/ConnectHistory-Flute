@@ -107,15 +107,25 @@ class PlayerCardScreen extends Screen
             return;
         }
 
-        $this->metrics = [
-            'playtime' => $this->humanDuration($this->player['total_seconds'] ?? 0),
-            'sessions' => (int) ($this->player['sessions_count'] ?? 0),
-            'first_seen' => $this->toPanelTime($this->player['first_seen'] ?? null, 'd.m.Y'),
-            'last_seen' => $this->toPanelTime($this->player['last_seen'] ?? null),
-        ];
-
         $this->nicknames = $this->history->playerNicknames($this->steamid64);
         $this->summary = $this->history->playerSummary($this->steamid64);
+
+        // Три времени считаются ИЗ СЕССИЙ, а не из ch_players.total_seconds.
+        //
+        // Причина: total_seconds — это «наиграно» в понимании плагина, и если
+        // на сервере включено Collect.CountSpectatorTime = false, время вне игры
+        // из него уже вычтено. Панель об этой настройке не знает, поэтому
+        // подписать такое число честно нельзя. А из сессий все три величины
+        // выводятся однозначно и всегда сходятся: на сервере = в игре + вне игры.
+        $connected = (int) ($this->summary['connected_seconds'] ?? 0);
+        $spectator = (int) ($this->summary['spectator_seconds'] ?? 0);
+
+        $this->metrics = [
+            'connected' => $this->humanDuration($connected),
+            'played' => $this->humanDuration(max(0, $connected - $spectator)),
+            'spectator' => $spectator > 0 ? $this->humanDuration($spectator) : '—',
+            'sessions' => (int) ($this->player['sessions_count'] ?? 0),
+        ];
         $this->servers = $this->history->playerServers($this->steamid64);
         $this->maps = $this->history->playerMaps($this->steamid64);
         $this->reasons = $this->history->playerReasons($this->steamid64);
@@ -178,15 +188,15 @@ class PlayerCardScreen extends Screen
 
         return [
             LayoutFactory::metrics([
-                __('connecthistory.player.metric_playtime') => 'metrics.playtime',
+                __('connecthistory.player.metric_connected') => 'metrics.connected',
+                __('connecthistory.player.metric_played') => 'metrics.played',
+                __('connecthistory.player.metric_spectator') => 'metrics.spectator',
                 __('connecthistory.player.metric_sessions') => 'metrics.sessions',
-                __('connecthistory.player.metric_first_seen') => 'metrics.first_seen',
-                __('connecthistory.player.metric_last_seen') => 'metrics.last_seen',
             ])->setIcons([
-                __('connecthistory.player.metric_playtime') => 'hourglass-medium',
+                __('connecthistory.player.metric_connected') => 'plugs-connected',
+                __('connecthistory.player.metric_played') => 'game-controller',
+                __('connecthistory.player.metric_spectator') => 'eye',
                 __('connecthistory.player.metric_sessions') => 'clock-counter-clockwise',
-                __('connecthistory.player.metric_first_seen') => 'flag',
-                __('connecthistory.player.metric_last_seen') => 'clock',
             ]),
 
             LayoutFactory::chart('activity', __('connecthistory.player.activity_title'))

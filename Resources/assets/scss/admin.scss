@@ -71,6 +71,10 @@
         font-weight: 600;
     }
 
+    &__seen {
+        color: var(--text-500);
+    }
+
     &__links {
         display: flex;
         align-items: center;
