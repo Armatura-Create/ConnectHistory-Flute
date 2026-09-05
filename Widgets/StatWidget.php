@@ -180,7 +180,9 @@ class StatWidget extends AbstractWidget
         );
 
         $ttl = $metric === 'online_now' ? self::TTL_LIVE : self::TTL_AGGREGATE;
-        $key = 'ch:widget:' . $metric . ':' . ($serverId ?? 'all') . ':' . $period;
+        // Точки, а не двоеточия: в PSR-6 символы {}()/\@: зарезервированы,
+        // и кеш на таком ключе бросает исключение вместо кеширования.
+        $key = 'connecthistory.widget.' . $metric . '.' . ($serverId ?? 'all') . '.' . $period;
 
         try {
             $value = cache()->callback($key, fn () => $this->compute($repository, $filter, $metric), $ttl);

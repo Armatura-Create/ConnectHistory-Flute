@@ -33,6 +33,12 @@ final class SessionFilter
     public const GROUP_DAY = 'day';
     public const GROUP_REASON = 'reason';
 
+    /**
+     * Символы, зарезервированные PSR-6 в ключах кеша. Ключ с любым из них
+     * не кешируется, а бросает исключение.
+     */
+    public const CACHE_RESERVED_CHARACTERS = '{}()/\\@:';
+
     /** Значение end_kind для аварийно оборванной сессии. */
     public const END_KIND_STALE = 5;
 
@@ -164,10 +170,17 @@ final class SessionFilter
         return $this->spanDays($now) <= 2;
     }
 
-    /** Ключ кеша: одинаковые фильтры дают одинаковый результат. */
+    /**
+     * Ключ кеша: одинаковые фильтры дают одинаковый результат.
+     *
+     * Разделитель — точка, а НЕ двоеточие: в PSR-6 символы {}()/\@: зарезервированы,
+     * и Symfony Cache бросает InvalidArgumentException на таком ключе. Двоеточие
+     * в ключе означало не «медленнее», а «кеша нет вовсе» — исключение проглатывалось,
+     * и каждый заход шёл в базу. Проверяется тестом.
+     */
     public function cacheKey(string $scope): string
     {
-        return 'ch:' . $scope . ':' . substr(sha1(serialize([
+        return 'connecthistory.' . $scope . '.' . substr(sha1(serialize([
             $this->serverId,
             $this->periodDays,
             $this->dateFrom,

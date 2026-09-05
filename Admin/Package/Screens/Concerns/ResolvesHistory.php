@@ -256,7 +256,12 @@ trait ResolvesHistory
 
         try {
             return cache()->callback($key, $producer, $ttl);
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            // Считаем без кеша, чтобы раздел работал, но НЕ молча: неработающий
+            // кеш означает запрос в базу на каждый заход, и заметить это можно
+            // только по логу. Именно так пряталось двоеточие в ключе.
+            logs()->warning('[ConnectHistory] Кеш недоступен, запрос выполняется напрямую: ' . $e->getMessage());
+
             return $producer();
         }
     }
