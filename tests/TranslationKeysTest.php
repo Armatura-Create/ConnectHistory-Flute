@@ -65,7 +65,12 @@ final class TranslationKeysTest extends TestCase
     {
         $keys = self::DYNAMIC_KEYS;
 
-        $directories = [self::root() . '/Admin', self::root() . '/Resources/views'];
+        // Services тоже переводит: диагностика подключений собирает сообщения там
+        $directories = [
+            self::root() . '/Admin',
+            self::root() . '/Services',
+            self::root() . '/Resources/views',
+        ];
 
         foreach ($directories as $directory) {
             $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory));

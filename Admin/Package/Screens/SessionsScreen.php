@@ -67,17 +67,17 @@ class SessionsScreen extends Screen
             ? $this->history->sessionsQuery($this->filter, $this->withPii)
             : $this->history->groupedSessions($this->filter, $this->groupCap);
 
-        $this->metrics = $this->cached(
+        $this->metrics = $this->decorateMetrics($this->cached(
             'sessions-metrics',
             fn () => $this->history->overviewMetrics($this->filter),
             (int) config('connecthistory.cache.metrics', 60)
-        );
+        ));
     }
 
     public function layout(): array
     {
         if (!$this->configured) {
-            return [LayoutFactory::view('connecthistory::admin.not-configured')];
+            return [$this->notConfiguredLayout()];
         }
 
         return [
@@ -99,19 +99,6 @@ class SessionsScreen extends Screen
                 ? $this->rowsTable()
                 : $this->groupedTable(),
         ];
-    }
-
-    /**
-     * Метрики приходят в секундах — человекочитаемый вид считаем здесь,
-     * чтобы Metric-слой получил готовую строку.
-     */
-    public function get($property, $default = null)
-    {
-        if ($property === 'metrics.avg_session_human') {
-            return $this->humanDuration($this->metrics['avg_seconds'] ?? 0);
-        }
-
-        return parent::get($property, $default);
     }
 
     protected function filters(): Filters

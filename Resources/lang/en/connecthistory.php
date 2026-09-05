@@ -236,6 +236,9 @@ return [
         'step_3' => 'Set ServerId — the same number as in the plugin Settings.json on that server.',
         'step_4' => 'The database user only needs SELECT: the panel never writes to the history.',
         'open_servers' => 'Go to servers',
+        'found' => 'Connections of type ConnectHistory found: :total, usable: :usable.',
+        'problem_no_database' => 'Database ":database" is referenced by the connection but is missing from the panel config/database.php.',
+        'problem_no_server' => 'The connection to database ":database" is not linked to any server.',
     ],
 
     'settings' => [

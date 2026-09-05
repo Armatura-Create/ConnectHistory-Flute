@@ -20,7 +20,7 @@ composer stan:flute  # PHPStan с настоящей CMS (нужен клон в
 Локально поднять CMS для полного анализа:
 
 ```bash
-git clone --depth 1 --branch v1.0.7 https://github.com/Flute-CMS/cms.git .flute
+git clone --depth 1 --branch v1.0.6 https://github.com/Flute-CMS/cms.git .flute
 cd .flute && composer install --no-scripts && cd ..
 composer stan:flute
 php tests/compat/assert-flute-classes.php --verbose
@@ -136,5 +136,8 @@ Flute ставится клоном, а не `composer require`: `flute-cms/cms`
 ## Версии
 
 Версия живёт в `module.json` и обязана совпадать с тегом релиза — это проверяет
-`release.yml` перед сборкой архива. Целевая версия CMS указана в двух местах:
-`module.json` (`dependencies.flute`) и `FLUTE_VERSION` в `ci.yml`.
+`release.yml` перед сборкой архива.
+
+Диапазон поддерживаемых версий CMS указан в двух местах: `module.json`
+(`dependencies.flute`) и матрица `flute` в `ci.yml`. Нижняя граница обязана быть
+в матрице — иначе обещание «работает с 1.0.6» ничем не подкреплено.

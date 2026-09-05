@@ -236,6 +236,9 @@ return [
         'step_3' => 'Укажите ServerId — тот же номер, что стоит в Settings.json плагина на этом сервере.',
         'step_4' => 'Пользователю базы достаточно права SELECT: панель ничего не пишет в историю.',
         'open_servers' => 'Перейти к серверам',
+        'found' => 'Подключений с типом ConnectHistory найдено: :total, пригодных: :usable.',
+        'problem_no_database' => 'База «:database» указана в подключении, но её нет в config/database.php панели.',
+        'problem_no_server' => 'Подключение к базе «:database» не привязано ни к одному серверу.',
     ],
 
     'settings' => [

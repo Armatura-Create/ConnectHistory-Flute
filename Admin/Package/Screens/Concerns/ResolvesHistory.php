@@ -7,6 +7,7 @@ namespace Flute\Modules\ConnectHistory\Admin\Package\Screens\Concerns;
 use DateTimeImmutable;
 use DateTimeZone;
 use Flute\Admin\Platform\Layouts\Filters;
+use Flute\Admin\Platform\Layouts\LayoutFactory;
 use Flute\Modules\ConnectHistory\Admin\Package\ConnectHistoryPackage;
 use Flute\Modules\ConnectHistory\Services\HistoryRepository;
 use Flute\Modules\ConnectHistory\Services\PlayerIdentityService;
@@ -46,6 +47,19 @@ trait ResolvesHistory
         $this->configured = $this->history !== null;
     }
 
+    /**
+     * Экран «не настроено» с диагностикой: что модуль реально видит.
+     *
+     * Инструкция из четырёх шагов бесполезна тому, кто их уже выполнил, —
+     * ему нужно знать, какое из подключений и почему не подошло.
+     */
+    protected function notConfiguredLayout()
+    {
+        return LayoutFactory::view('connecthistory::admin.not-configured', [
+            'diagnostics' => HistoryRepository::diagnostics(),
+        ]);
+    }
+
     /** Персональные данные — отдельное право, а не отдельная колонка в вёрстке. */
     protected function canSeePii(): bool
     {
@@ -80,6 +94,29 @@ trait ResolvesHistory
             '180d' => __('connecthistory.periods.half_year'),
             '365d' => __('connecthistory.periods.year'),
         ], '7d')->dateRange('date', __('connecthistory.filters.dates'));
+    }
+
+    /**
+     * Готовит метрики к отрисовке слоем Metric.
+     *
+     * Слои читают значения ИЗ Repository (`Arr::get` по точечному пути), а не через
+     * Screen::get(): тот обслуживает вычисляемые свойства Yoyo и до слоёв не доходит.
+     * Поэтому производные значения кладутся прямо в массив, иначе метрика молча
+     * отрисуется пустой строкой.
+     *
+     * Форматирование делается ПОСЛЕ кеша: оно зависит от языка и пояса панели,
+     * а кешируются сырые числа.
+     *
+     * @param array<string, mixed> $metrics
+     * @return array<string, mixed>
+     */
+    protected function decorateMetrics(array $metrics): array
+    {
+        $metrics['avg_session_human'] = $this->humanDuration($metrics['avg_seconds'] ?? 0);
+        $metrics['total_time_human'] = $this->humanDuration($metrics['total_seconds'] ?? 0);
+        $metrics['retention_human'] = (float) ($metrics['retention'] ?? 0) . '%';
+
+        return $metrics;
     }
 
     // --- личности игроков --------------------------------------------------

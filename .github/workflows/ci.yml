@@ -56,12 +56,18 @@ jobs:
   # Главная джоба. Ловит ровно ту поломку, которая убила предыдущий модуль:
   # класс Flute переехал, модуль об этом узнал в проде (docs/AUTOPSY.md №4 и №5).
   flute-compat:
-    name: Совместимость с Flute
+    name: Совместимость с Flute ${{ matrix.flute }}
     runs-on: ubuntu-latest
 
+    strategy:
+      fail-fast: false
+      matrix:
+        # Нижняя граница из module.json и текущий релиз. Проверяются обе:
+        # модуль обещает работать на всём диапазоне, а не только на свежей CMS.
+        flute: ['v1.0.6', 'v1.0.7']
+
     env:
-      # Целевая версия CMS. Поднимается здесь и в module.json (dependencies.flute).
-      FLUTE_VERSION: v1.0.7
+      FLUTE_VERSION: ${{ matrix.flute }}
 
     steps:
       - uses: actions/checkout@v4

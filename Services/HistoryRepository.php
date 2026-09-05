@@ -7,7 +7,7 @@ namespace Flute\Modules\ConnectHistory\Services;
 use Cycle\Database\Injection\Fragment;
 use Cycle\Database\Query\SelectQuery;
 use DateTimeImmutable;
-use Flute\Core\Services\DatabaseService;
+use Flute\Core\Database\Entities\DatabaseConnection;
 use Flute\Modules\ConnectHistory\Admin\Drivers\ConnectHistoryModDriver;
 use Throwable;
 
@@ -62,12 +62,22 @@ final class HistoryRepository
     /**
      * Все подключения с модом ConnectHistory.
      *
+     * Читаем сущность DatabaseConnection напрямую, а не через DatabaseService:
+     * его методы возвращают массивы разной формы (getServersByMode отдаёт
+     * ['server', 'dbname'], getConnectionInfoByServerId — ['server', 'connection']),
+     * и опечатка в ключе массива не ловится ни тестом, ни статическим анализом —
+     * раздел просто молча считает себя ненастроенным. Свойства сущности типизованы,
+     * и PHPStan проверяет их против настоящего класса Flute.
+     *
      * @return array<int, array{server: object, database: string, prefix: string, server_id: int}>
      */
     public static function bindings(): array
     {
         try {
-            $modes = app(DatabaseService::class)->getServersByMode(ConnectHistoryModDriver::MOD_KEY);
+            $connections = DatabaseConnection::query()
+                ->with('server')
+                ->where('mod', ConnectHistoryModDriver::MOD_KEY)
+                ->fetchAll();
         } catch (Throwable $e) {
             logs()->warning('[ConnectHistory] Не удалось получить список подключений: ' . $e->getMessage());
 
@@ -76,20 +86,25 @@ final class HistoryRepository
 
         $result = [];
 
-        foreach ($modes as $mode) {
-            $connection = $mode['connection'] ?? null;
-            $server = $mode['server'] ?? null;
+        foreach ($connections as $connection) {
+            $server = $connection->server;
 
-            if ($connection === null || $server === null) {
+            // Подключение может остаться без сервера, если сервер удалили
+            if ($server === null) {
                 continue;
             }
 
-            // Подключение может быть описано модом, но отсутствовать в конфиге панели
+            // Мод объявлен, но самого подключения нет в конфиге панели
             if (!config("database.databases.{$connection->dbname}")) {
+                logs()->warning(
+                    "[ConnectHistory] Подключение «{$connection->dbname}» указано у сервера "
+                    . "«{$server->name}», но отсутствует в config/database.php"
+                );
+
                 continue;
             }
 
-            $additional = ServerBinding::readAdditional($connection->additional ?? null);
+            $additional = ServerBinding::readAdditional($connection->additional);
 
             $result[(int) $server->id] = [
                 'server' => $server,
@@ -100,6 +115,56 @@ final class HistoryRepository
         }
 
         return $result;
+    }
+
+    /**
+     * Почему раздел считает себя ненастроенным.
+     *
+     * Существует ради одного сценария: человек прошёл все шаги инструкции, а экран
+     * всё равно говорит «не настроено». Без этого метода единственный способ
+     * разобраться — читать логи панели.
+     *
+     * Вызывается только на пустом экране, поэтому лишний запрос не важен.
+     *
+     * @return array{total: int, usable: int, problems: array<int, string>}
+     */
+    public static function diagnostics(): array
+    {
+        try {
+            $connections = DatabaseConnection::query()
+                ->with('server')
+                ->where('mod', ConnectHistoryModDriver::MOD_KEY)
+                ->fetchAll();
+        } catch (Throwable $e) {
+            return ['total' => 0, 'usable' => 0, 'problems' => [$e->getMessage()]];
+        }
+
+        $problems = [];
+        $usable = 0;
+
+        foreach ($connections as $connection) {
+            $name = (string) $connection->dbname;
+
+            if ($connection->server === null) {
+                $problems[] = __('connecthistory.setup.problem_no_server', ['database' => $name]);
+
+                continue;
+            }
+
+            if (!config("database.databases.{$name}")) {
+                $problems[] = __('connecthistory.setup.problem_no_database', ['database' => $name]);
+
+                continue;
+            }
+
+            ++$usable;
+        }
+
+        return [
+            'total' => count($connections),
+            'usable' => $usable,
+            'problems' => $problems,
+        ];
     }
 
     /** Опции для фильтра «Сервер»: id сервера панели -> название. */

@@ -7,7 +7,7 @@ English · [Русский](README.ru.md)
 [![Downloads](https://img.shields.io/github/downloads/Armatura-Create/ConnectHistory-Flute/total?logo=github&color=success)](https://github.com/Armatura-Create/ConnectHistory-Flute/releases)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777bb4?logo=php&logoColor=white)](https://www.php.net/)
-[![Flute CMS](https://img.shields.io/badge/Flute%20CMS-%E2%89%A5%201.0.7-f97316)](https://github.com/Flute-CMS/cms)
+[![Flute CMS](https://img.shields.io/badge/Flute%20CMS-%E2%89%A5%201.0.6-f97316)](https://github.com/Flute-CMS/cms)
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 
 A player history and statistics section for the [Flute CMS](https://github.com/Flute-CMS/cms)
@@ -90,7 +90,7 @@ previous panel module, each traced to its root cause.
 
 ## Requirements
 
-- Flute CMS >= 1.0.7
+- Flute CMS >= 1.0.6 (CI verifies both 1.0.6 and 1.0.7)
 - PHP >= 8.2
 - The ConnectHistory plugin on the game server (DB schema version >= 1)
 

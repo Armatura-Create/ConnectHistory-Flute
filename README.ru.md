@@ -7,7 +7,7 @@
 [![Downloads](https://img.shields.io/github/downloads/Armatura-Create/ConnectHistory-Flute/total?logo=github&color=success)](https://github.com/Armatura-Create/ConnectHistory-Flute/releases)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777bb4?logo=php&logoColor=white)](https://www.php.net/)
-[![Flute CMS](https://img.shields.io/badge/Flute%20CMS-%E2%89%A5%201.0.7-f97316)](https://github.com/Flute-CMS/cms)
+[![Flute CMS](https://img.shields.io/badge/Flute%20CMS-%E2%89%A5%201.0.6-f97316)](https://github.com/Flute-CMS/cms)
 [![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
 
 Раздел «История и статистика игроков» для панели [Flute CMS](https://github.com/Flute-CMS/cms).
@@ -88,7 +88,7 @@ GRANT SELECT ON connect_history.* TO 'ch_reader'@'%';
 
 ## Требования
 
-- Flute CMS >= 1.0.7
+- Flute CMS >= 1.0.6 (проверяется в CI на 1.0.6 и 1.0.7)
 - PHP >= 8.2
 - Плагин ConnectHistory на игровом сервере (схема БД версии >= 1)
 

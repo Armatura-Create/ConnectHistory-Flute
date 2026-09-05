@@ -52,17 +52,17 @@ class PlayersScreen extends Screen
 
         $this->players = $this->history->playersQuery($this->filter);
 
-        $this->metrics = $this->cached(
+        $this->metrics = $this->decorateMetrics($this->cached(
             'players-metrics',
             fn () => $this->history->overviewMetrics($this->filter),
             (int) config('connecthistory.cache.metrics', 60)
-        );
+        ));
     }
 
     public function layout(): array
     {
         if (!$this->configured) {
-            return [LayoutFactory::view('connecthistory::admin.not-configured')];
+            return [$this->notConfiguredLayout()];
         }
 
         return [
@@ -134,15 +134,6 @@ class PlayersScreen extends Screen
                     __('connecthistory.players.empty_sub')
                 ),
         ];
-    }
-
-    public function get($property, $default = null)
-    {
-        if ($property === 'metrics.retention_human') {
-            return ($this->metrics['retention'] ?? 0) . '%';
-        }
-
-        return parent::get($property, $default);
     }
 
     protected function filters(): Filters

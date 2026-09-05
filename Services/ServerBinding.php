@@ -75,15 +75,26 @@ final class ServerBinding
     }
 
     /**
+     * Правила валидации настроек подключения.
+     *
+     * ВАЖНО: этот список решает не только «что проверить», но и «что сохранить».
+     * Панель кладёт в additional ТОЛЬКО ключи, перечисленные здесь
+     * (Server/Screens/Concerns/HandlesDbActions.php), поэтому поле, забытое
+     * в правилах, молча выбрасывается при сохранении — форма его показывает,
+     * пользователь заполняет, а в базу оно не попадает.
+     *
+     * Ключи обязаны совпадать с тем, что возвращает prepare(); это проверяет тест.
+     *
      * server_id обязателен: без него нельзя отличить один игровой сервер от другого
      * внутри общей базы плагина.
      *
-     * @return array<string, string>
+     * @return array<string, array<int, string>>
      */
     public static function validationRules(): array
     {
         return [
-            'server_id' => 'required|numeric',
+            'server_id' => ['required', 'numeric'],
+            'prefix' => ['nullable', 'string', 'max-str-len:16'],
         ];
     }
 

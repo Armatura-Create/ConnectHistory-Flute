@@ -132,6 +132,50 @@ final class ServerBindingTest extends TestCase
         $rules = ServerBinding::validationRules();
 
         self::assertArrayHasKey('server_id', $rules);
-        self::assertStringContainsString('required', $rules['server_id']);
+        self::assertContains('required', $rules['server_id']);
+    }
+
+    /**
+     * Панель сохраняет в additional ТОЛЬКО те ключи, что перечислены в правилах
+     * валидации (HandlesDbActions::saveDbConnection). Поле, забытое в правилах,
+     * молча выбрасывается: форма его показывает, человек заполняет, а в базу
+     * оно не доезжает.
+     *
+     * Именно так потерялся prefix в первом релизе.
+     */
+    public function testEveryPreparedKeyIsPersistable(): void
+    {
+        $prepared = array_keys(ServerBinding::prepare(['server_id' => 1, 'prefix' => 'ch_']));
+        $persistable = array_keys(ServerBinding::validationRules());
+
+        self::assertSame(
+            [],
+            array_values(array_diff($prepared, $persistable)),
+            'ключ, которого нет в validationRules(), не сохранится в additional'
+        );
+    }
+
+    /**
+     * Обратная сторона: правило без соответствующего поля в prepare() означает,
+     * что панель ждёт значение, которого драйвер никогда не отдаст.
+     */
+    public function testEveryRuleHasAPreparedValue(): void
+    {
+        $prepared = array_keys(ServerBinding::prepare([]));
+        $persistable = array_keys(ServerBinding::validationRules());
+
+        self::assertSame([], array_values(array_diff($persistable, $prepared)));
+    }
+
+    /**
+     * Правила задаются массивами, как во всём ядре Flute: строку с '|' валидатор
+     * панели не разбирает на отдельные проверки.
+     */
+    public function testRulesAreArrays(): void
+    {
+        foreach (ServerBinding::validationRules() as $field => $rules) {
+            self::assertIsArray($rules, "правила для {$field} должны быть массивом");
+            self::assertNotSame([], $rules);
+        }
     }
 }

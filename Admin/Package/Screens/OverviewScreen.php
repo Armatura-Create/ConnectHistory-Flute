@@ -82,11 +82,11 @@ class OverviewScreen extends Screen
             return;
         }
 
-        $this->metrics = $this->cached(
+        $this->metrics = $this->decorateMetrics($this->cached(
             'overview-metrics',
             fn () => $this->history->overviewMetrics($this->filter),
             (int) config('connecthistory.cache.metrics', 60)
-        );
+        ));
 
         $this->activeTab = (string) request()->input('tab-' . self::TABS_SLUG, self::TAB_ONLINE);
         $this->loadActiveTab();
@@ -95,7 +95,7 @@ class OverviewScreen extends Screen
     public function layout(): array
     {
         if (!$this->configured) {
-            return [LayoutFactory::view('connecthistory::admin.not-configured')];
+            return [$this->notConfiguredLayout()];
         }
 
         return [
@@ -128,15 +128,6 @@ class OverviewScreen extends Screen
                 $this->tab(self::TAB_CRASHES, 'ph.regular.warning-octagon', $this->crashesLayout()),
             ])->slug(self::TABS_SLUG)->lazyload(),
         ];
-    }
-
-    public function get($property, $default = null)
-    {
-        return match ($property) {
-            'metrics.avg_session_human' => $this->humanDuration($this->metrics['avg_seconds'] ?? 0),
-            'metrics.retention_human' => ($this->metrics['retention'] ?? 0) . '%',
-            default => parent::get($property, $default),
-        };
     }
 
     // --- данные ------------------------------------------------------------

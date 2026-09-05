@@ -146,7 +146,7 @@ class PlayerCardScreen extends Screen
     public function layout(): array
     {
         if (!$this->configured) {
-            return [LayoutFactory::view('connecthistory::admin.not-configured')];
+            return [$this->notConfiguredLayout()];
         }
 
         if ($this->player === null) {
