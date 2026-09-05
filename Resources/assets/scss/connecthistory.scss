@@ -1,28 +1,14 @@
+// Стили ВИДЖЕТА — грузятся в тему сайта (ModuleServiceProvider::loadScss,
+// группа ассетов «main»). Всё, что относится к админ-панели, лежит в admin.scss
+// и подключается пакетом через registerScss (группа «admin»): группы разные,
+// и файл из одной в другой не попадает.
+
 // Модуль почти не имеет собственного оформления: экраны построены на готовых
 // слоях админ-платформы (Filters, Table, Metric, Chart), и переопределять их
 // стили значило бы расходиться с панелью при каждом её обновлении.
 //
 // Здесь только то, чего в платформе нет.
 
-.ch-hint {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--text-400);
-}
-
-// Длинные значения (SteamID64, хеш IP, адрес сервера) не должны растягивать
-// таблицу и включать горизонтальную прокрутку всей страницы.
-.ch-mono {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 11px;
-    color: var(--text-500);
-    word-break: break-all;
-}
-
-// Виджет с одним числом. Смысл вёрстки один: число — главное на карточке,
-// подпись и период его поясняют, но не спорят с ним за внимание.
 .ch-stat {
     &__body {
         display: flex;
@@ -110,144 +96,4 @@
 .ch-stat--empty .ch-stat__label {
     font-size: 12px;
     line-height: 1.4;
-}
-
-// Карточка игрока: шапка со сводкой и компактные справочные блоки.
-.ch-profile {
-    &__head {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-    }
-
-    &__avatar {
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
-        object-fit: cover;
-        flex-shrink: 0;
-
-        &--empty {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--transp-05);
-            color: var(--text-400);
-            font-size: 24px;
-        }
-    }
-
-    &__ident {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-    }
-
-    &__name {
-        font-size: 18px;
-        font-weight: 600;
-    }
-
-    &__links {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-top: 4px;
-        font-size: 12px;
-    }
-
-    &__chip {
-        padding: 1px 7px;
-        border-radius: 6px;
-        background: var(--transp-05);
-        color: var(--text-400);
-        font-size: 11px;
-    }
-
-    // Сводка боя: сетка, а не flex — колонки не должны разъезжаться
-    // при разной длине чисел.
-    &__stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-        gap: 12px;
-        margin-top: 18px;
-        padding-top: 16px;
-        border-top: 1px solid var(--transp-05);
-    }
-
-    &__stat {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    &__stat-value {
-        font-size: 17px;
-        font-weight: 600;
-
-        &--warn {
-            color: var(--warning);
-        }
-    }
-
-    &__stat-label {
-        font-size: 11px;
-        color: var(--text-400);
-    }
-}
-
-// Справочные блоки карточки: список строк без пагинации.
-.ch-block {
-    // Блоки стоят парами в ряду — без общей высоты ряд выглядит рваным
-    height: 100%;
-
-    &__row {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--transp-05);
-
-        &:last-child {
-            border-bottom: 0;
-        }
-    }
-
-    &__main {
-        font-size: 13px;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
-
-    &__meta {
-        font-size: 11px;
-        color: var(--text-500);
-    }
-
-    &__city {
-        font-size: 11px;
-        color: var(--text-400);
-    }
-
-    // Полоса доли: ширина задаётся инлайном из данных, здесь только оформление
-    &__bar {
-        display: block;
-        height: 3px;
-        margin-top: 4px;
-        border-radius: 2px;
-        background: var(--transp-05);
-        overflow: hidden;
-
-        > span {
-            display: block;
-            height: 100%;
-            border-radius: 2px;
-            background: var(--primary, var(--text-400));
-        }
-    }
 }

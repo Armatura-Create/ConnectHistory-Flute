@@ -200,6 +200,16 @@ class SessionsScreen extends Screen
                 ->width('120px')
                 ->render(fn (array $row) => $this->humanDuration($row['duration_seconds'] ?? null)),
 
+            TD::make('spectator_seconds', __('connecthistory.sessions.column_spectator'))
+                ->sort()
+                ->alignCenter()
+                ->width('120px')
+                ->defaultHidden()
+                ->popover(__('connecthistory.sessions.column_spectator_help'))
+                ->render(fn (array $row) => ($row['spectator_seconds'] ?? null) === null
+                    ? '—'
+                    : $this->humanDuration($row['spectator_seconds'])),
+
             TD::make('end_kind', __('connecthistory.sessions.column_state'))
                 ->sort()
                 ->width('150px')

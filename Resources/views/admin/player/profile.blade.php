@@ -24,11 +24,11 @@
                     </a>
 
                     @if (!empty($player['last_country']))
-                        <span class="ch-profile__chip">{{ $player['last_country'] }}</span>
+                        <span class="ch-chip">{{ $player['last_country'] }}</span>
                     @endif
 
                     @if (!empty($summary['client_lang']))
-                        <span class="ch-profile__chip">{{ $summary['client_lang'] }}</span>
+                        <span class="ch-chip">{{ $summary['client_lang'] }}</span>
                     @endif
                 </div>
             </div>
@@ -76,6 +76,13 @@
                 </span>
                 <span class="ch-profile__stat-label">{{ __('connecthistory.player.ping') }}</span>
             </div>
+
+            @if ((int) ($summary['spectator_seconds'] ?? 0) > 0)
+                <div class="ch-profile__stat">
+                    <span class="ch-profile__stat-value">{{ $fmt::duration($summary['spectator_seconds']) }}</span>
+                    <span class="ch-profile__stat-label">{{ __('connecthistory.player.spectator') }}</span>
+                </div>
+            @endif
 
             @if ((int) ($summary['crashed'] ?? 0) > 0)
                 <div class="ch-profile__stat">

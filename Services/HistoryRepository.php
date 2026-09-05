@@ -30,7 +30,7 @@ final class HistoryRepository
     /** Колонки сессии, доступные всем. */
     public const SESSION_COLUMNS = [
         'id', 'steamid64', 'account_id', 'server_id', 'nickname',
-        'started_at', 'ended_at', 'duration_seconds', 'end_kind',
+        'started_at', 'ended_at', 'duration_seconds', 'spectator_seconds', 'end_kind',
         'connect_map', 'disconnect_map', 'disconnect_reason_name',
         'players_online', 'max_players', 'client_lang',
         'country_iso', 'country_name',
@@ -708,7 +708,8 @@ final class HistoryRepository
                     MAX(`client_lang`) AS `client_lang`,
                     COUNT(DISTINCT `country_iso`) AS `countries`,
                     SUM(CASE WHEN `end_kind` = ' . SessionFilter::END_KIND_STALE . " THEN 1 ELSE 0 END) AS `crashed`,
-                    COALESCE(MAX(`players_online`), 0) AS `busiest`
+                    COALESCE(MAX(`players_online`), 0) AS `busiest`,
+                    COALESCE(SUM(`spectator_seconds`), 0) AS `spectator_seconds`
              FROM `{$this->table('sessions')}`
              WHERE `steamid64` = ?",
             [$steamid64]

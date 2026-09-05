@@ -227,12 +227,15 @@ class PlayerCardScreen extends Screen
                 ]),
             ]),
 
-            LayoutFactory::view('connecthistory::admin.player.network', [
-                'rows' => $this->ipHistory,
-                'alts' => $this->alts,
-                'withPii' => $this->withPii,
-                'summary' => $this->summary,
-            ]),
+            // Сетку строит платформа (Columns), а не вьюха: своя разметка row/col
+            // внутри чужой сетки — лишний уровень, который легко расходится
+            // с отступами панели.
+            $this->withPii
+                ? LayoutFactory::columns([
+                    LayoutFactory::view('connecthistory::admin.player.ip', ['rows' => $this->ipHistory]),
+                    LayoutFactory::view('connecthistory::admin.player.alts', ['rows' => $this->alts]),
+                ])
+                : LayoutFactory::view('connecthistory::admin.pii-hidden'),
 
             // Единственная таблица на экране — значит page и sort принадлежат ей
             LayoutFactory::table('sessions', $this->sessionColumns())

@@ -25,7 +25,25 @@ class ConnectHistoryPackage extends AbstractAdminPackage
     {
         parent::initialize();
 
-        $this->loadRoutesFromFile('routes.php');
+        $this->loadRoutesFromFile('Admin/Package/routes.php');
+
+        // Стили админ-экранов подключаются ИМЕННО здесь, в группу ассетов «admin».
+        //
+        // ModuleServiceProvider::loadScss() кладёт файл в группу «main» — это тема
+        // сайта, и в панели он не загружается вовсе. Пока карточка игрока
+        // полагалась на него, она рисовалась совсем без стилей.
+        $this->registerScss('Resources/assets/scss/admin.scss');
+    }
+
+    /**
+     * База пакета — корень модуля, а не каталог Admin/Package.
+     *
+     * По умолчанию AbstractAdminPackage берёт каталог собственного класса,
+     * и пути к ресурсам превращались бы в «../../Resources/...».
+     */
+    public function getBasePath(): string
+    {
+        return dirname(__DIR__, 2);
     }
 
     public function getPermissions(): array
