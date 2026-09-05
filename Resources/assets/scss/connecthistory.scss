@@ -28,6 +28,12 @@
         display: flex;
         align-items: center;
         gap: 14px;
+
+        // Одинаковая высота независимо от длины подписи: в ряду виджетов
+        // разная высота карточек читается как сбой вёрстки, а не как разный текст.
+        // min-height, а не height: длинная подпись должна растягивать карточку,
+        // а не обрезаться.
+        min-height: 58px;
     }
 
     &__icon {
@@ -104,4 +110,144 @@
 .ch-stat--empty .ch-stat__label {
     font-size: 12px;
     line-height: 1.4;
+}
+
+// Карточка игрока: шапка со сводкой и компактные справочные блоки.
+.ch-profile {
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    &__avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        object-fit: cover;
+        flex-shrink: 0;
+
+        &--empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--transp-05);
+            color: var(--text-400);
+            font-size: 24px;
+        }
+    }
+
+    &__ident {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    &__name {
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    &__links {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 4px;
+        font-size: 12px;
+    }
+
+    &__chip {
+        padding: 1px 7px;
+        border-radius: 6px;
+        background: var(--transp-05);
+        color: var(--text-400);
+        font-size: 11px;
+    }
+
+    // Сводка боя: сетка, а не flex — колонки не должны разъезжаться
+    // при разной длине чисел.
+    &__stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--transp-05);
+    }
+
+    &__stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    &__stat-value {
+        font-size: 17px;
+        font-weight: 600;
+
+        &--warn {
+            color: var(--warning);
+        }
+    }
+
+    &__stat-label {
+        font-size: 11px;
+        color: var(--text-400);
+    }
+}
+
+// Справочные блоки карточки: список строк без пагинации.
+.ch-block {
+    // Блоки стоят парами в ряду — без общей высоты ряд выглядит рваным
+    height: 100%;
+
+    &__row {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--transp-05);
+
+        &:last-child {
+            border-bottom: 0;
+        }
+    }
+
+    &__main {
+        font-size: 13px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    &__meta {
+        font-size: 11px;
+        color: var(--text-500);
+    }
+
+    &__city {
+        font-size: 11px;
+        color: var(--text-400);
+    }
+
+    // Полоса доли: ширина задаётся инлайном из данных, здесь только оформление
+    &__bar {
+        display: block;
+        height: 3px;
+        margin-top: 4px;
+        border-radius: 2px;
+        background: var(--transp-05);
+        overflow: hidden;
+
+        > span {
+            display: block;
+            height: 100%;
+            border-radius: 2px;
+            background: var(--primary, var(--text-400));
+        }
+    }
 }

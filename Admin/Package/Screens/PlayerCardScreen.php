@@ -46,6 +46,21 @@ class PlayerCardScreen extends Screen
     /** @var array<int, array<string, mixed>> */
     public array $alts = [];
 
+    /** @var array<string, mixed> */
+    public array $summary = [];
+
+    /** @var array<int, array<string, mixed>> */
+    public array $servers = [];
+
+    /** @var array<int, array<string, mixed>> */
+    public array $maps = [];
+
+    /** @var array<int, array<string, mixed>> */
+    public array $reasons = [];
+
+    /** @var array<int, array<string, mixed>> */
+    public array $ipHistory = [];
+
     /** @var array<int, array<string, mixed>> */
     public array $activity = [];
 
@@ -100,6 +115,10 @@ class PlayerCardScreen extends Screen
         ];
 
         $this->nicknames = $this->history->playerNicknames($this->steamid64);
+        $this->summary = $this->history->playerSummary($this->steamid64);
+        $this->servers = $this->history->playerServers($this->steamid64);
+        $this->maps = $this->history->playerMaps($this->steamid64);
+        $this->reasons = $this->history->playerReasons($this->steamid64);
         $this->sessions = $this->history->playerSessionsQuery($this->steamid64, $this->withPii);
 
         $activity = $this->history->playerActivity($this->steamid64);
@@ -109,9 +128,11 @@ class PlayerCardScreen extends Screen
             'data' => $this->column($activity, 'minutes'),
         ]];
 
-        // Персональный блок — только за отдельным правом
+        // Персональные блоки — только за отдельным правом: без него эти запросы
+        // не выполняются вовсе, а не прячутся в вёрстке.
         if ($this->withPii) {
             $this->alts = $this->history->possibleAlts($this->steamid64);
+            $this->ipHistory = $this->history->playerIpHistory($this->steamid64);
         }
     }
 
@@ -155,7 +176,7 @@ class PlayerCardScreen extends Screen
             ])];
         }
 
-        $layout = [
+        return [
             LayoutFactory::metrics([
                 __('connecthistory.player.metric_playtime') => 'metrics.playtime',
                 __('connecthistory.player.metric_sessions') => 'metrics.sessions',
@@ -174,62 +195,52 @@ class PlayerCardScreen extends Screen
                 ->height(220)
                 ->description(__('connecthistory.player.activity_description')),
 
-            LayoutFactory::columns([
-                LayoutFactory::table('nicknames', [
-                    TD::make('nickname', __('connecthistory.player.column_nickname')),
-                    TD::make('times_seen', __('connecthistory.player.column_times'))
-                        ->alignCenter()
-                        ->width('110px'),
-                    TD::make('last_seen', __('connecthistory.player.column_last_used'))
-                        ->width('160px')
-                        ->render(fn (array $row) => $this->toPanelTime($row['last_seen'] ?? null)),
-                ])
-                    ->title(__('connecthistory.player.nicknames_title'))
-                    ->compact()
-                    ->perPage(10)
-                    ->empty('ph.regular.textbox', __('connecthistory.player.nicknames_empty')),
-
-                $this->altsLayout(),
+            // Справочные блоки — обычные вьюхи, а не таблицы платформы.
+            //
+            // Причина: Layouts\Table берёт номер страницы и сортировку из ОБЩИХ
+            // GET-параметров page и sort. Несколько таблиц на одном экране делят
+            // их между собой: листаешь одну — листаются все, сортируешь одну —
+            // сортируются все. Этим блокам пагинация не нужна, они и так
+            // ограничены LIMIT в SQL.
+            LayoutFactory::view('connecthistory::admin.player.profile', [
+                'player' => $this->player,
+                'identity' => $this->identity,
+                'summary' => $this->summary,
+                'steamid64' => $this->steamid64,
             ]),
 
+            LayoutFactory::columns([
+                LayoutFactory::view('connecthistory::admin.player.nicknames', [
+                    'rows' => $this->nicknames,
+                ]),
+                LayoutFactory::view('connecthistory::admin.player.servers', [
+                    'rows' => $this->servers,
+                ]),
+            ]),
+
+            LayoutFactory::columns([
+                LayoutFactory::view('connecthistory::admin.player.maps', [
+                    'rows' => $this->maps,
+                ]),
+                LayoutFactory::view('connecthistory::admin.player.reasons', [
+                    'rows' => $this->reasons,
+                ]),
+            ]),
+
+            LayoutFactory::view('connecthistory::admin.player.network', [
+                'rows' => $this->ipHistory,
+                'alts' => $this->alts,
+                'withPii' => $this->withPii,
+                'summary' => $this->summary,
+            ]),
+
+            // Единственная таблица на экране — значит page и sort принадлежат ей
             LayoutFactory::table('sessions', $this->sessionColumns())
                 ->title(__('connecthistory.player.sessions_title'))
                 ->exportable(true, 'player-' . $this->steamid64)
                 ->perPage(20)
                 ->empty('ph.regular.clock-counter-clockwise', __('connecthistory.sessions.empty')),
         ];
-
-        return $layout;
-    }
-
-    /**
-     * Блок мультиаккаунтов существует только при праве pii — и запрос за ним
-     * тоже не выполняется, см. mount().
-     */
-    protected function altsLayout()
-    {
-        if (!$this->withPii) {
-            return LayoutFactory::view('connecthistory::admin.pii-hidden');
-        }
-
-        return LayoutFactory::table('alts', [
-            TD::make('nickname', __('connecthistory.player.column_alt'))
-                ->render(fn (array $row) => view('connecthistory::admin.cells.player', [
-                    'row' => $row,
-                    'link' => (string) url('/admin/connect-history/player/' . rawurlencode((string) $row['steamid64'])),
-                ])->render()),
-            TD::make('sessions', __('connecthistory.grouped.sessions'))
-                ->alignCenter()
-                ->width('110px'),
-            TD::make('last_seen', __('connecthistory.grouped.last_seen'))
-                ->width('160px')
-                ->render(fn (array $row) => $this->toPanelTime($row['last_seen'] ?? null)),
-        ])
-            ->title(__('connecthistory.player.alts_title'))
-            ->description(__('connecthistory.player.alts_description'))
-            ->compact()
-            ->perPage(10)
-            ->empty('ph.regular.users', __('connecthistory.player.alts_empty'));
     }
 
     /** @return array<int, TD> */

@@ -654,6 +654,123 @@ final class HistoryRepository
     }
 
     /**
+     * Сводка по игроку за всё время: бой, связь, язык.
+     *
+     * Отдельным запросом, а не из ch_players: там лежат только время и число
+     * заходов — всё остальное живёт в сессиях.
+     *
+     * @return array<string, mixed>
+     */
+    public function playerSummary(string $steamid64): array
+    {
+        return $this->fetchOne(
+            'SELECT COALESCE(SUM(`kills`), 0) AS `kills`,
+                    COALESCE(SUM(`deaths`), 0) AS `deaths`,
+                    COALESCE(SUM(`assists`), 0) AS `assists`,
+                    COALESCE(SUM(`headshots`), 0) AS `headshots`,
+                    COALESCE(SUM(`damage`), 0) AS `damage`,
+                    COALESCE(SUM(`mvp`), 0) AS `mvp`,
+                    COALESCE(SUM(`rounds_played`), 0) AS `rounds`,
+                    ROUND(AVG(NULLIF(`ping_avg`, 0))) AS `ping_avg`,
+                    MIN(NULLIF(`ping_min`, 0)) AS `ping_min`,
+                    MAX(`ping_max`) AS `ping_max`,
+                    MAX(`client_lang`) AS `client_lang`,
+                    COUNT(DISTINCT `country_iso`) AS `countries`,
+                    SUM(CASE WHEN `end_kind` = ' . SessionFilter::END_KIND_STALE . " THEN 1 ELSE 0 END) AS `crashed`,
+                    COALESCE(MAX(`players_online`), 0) AS `busiest`
+             FROM `{$this->table('sessions')}`
+             WHERE `steamid64` = ?",
+            [$steamid64]
+        );
+    }
+
+    /**
+     * По каким серверам игрок ходил.
+     *
+     * server_id соединяется со справочником, чтобы показать имя, а не номер:
+     * номер сервера плагина ничего не говорит человеку, смотрящему панель.
+     */
+    public function playerServers(string $steamid64): array
+    {
+        return $this->fetch(
+            "SELECT s.`server_id`,
+                    COALESCE(NULLIF(srv.`hostname`, ''), CONCAT('#', s.`server_id`)) AS `server_name`,
+                    COUNT(*) AS `sessions`,
+                    COALESCE(SUM(s.`duration_seconds`), 0) AS `total_seconds`,
+                    MIN(s.`started_at`) AS `first_seen`,
+                    MAX(s.`started_at`) AS `last_seen`
+             FROM `{$this->table('sessions')}` s
+             LEFT JOIN `{$this->table('servers')}` srv ON srv.`id` = s.`server_id`
+             WHERE s.`steamid64` = ?
+             GROUP BY s.`server_id`, `server_name`
+             ORDER BY `total_seconds` DESC
+             LIMIT 20",
+            [$steamid64]
+        );
+    }
+
+    /** Любимые карты игрока по наигранному времени. */
+    public function playerMaps(string $steamid64, int $limit = 10): array
+    {
+        return $this->fetch(
+            "SELECT `connect_map` AS `bucket`,
+                    COUNT(*) AS `sessions`,
+                    COALESCE(SUM(`duration_seconds`), 0) AS `total_seconds`
+             FROM `{$this->table('sessions')}`
+             WHERE `steamid64` = ? AND `connect_map` <> ''
+             GROUP BY `connect_map`
+             ORDER BY `total_seconds` DESC
+             LIMIT {$this->int($limit, 1, 50)}",
+            [$steamid64]
+        );
+    }
+
+    /** Как игрок обычно покидает сервер: вышел сам, кикнут, потерял связь. */
+    public function playerReasons(string $steamid64, int $limit = 10): array
+    {
+        return $this->fetch(
+            "SELECT COALESCE(`disconnect_reason_name`, 'UNKNOWN') AS `bucket`,
+                    COUNT(*) AS `sessions`,
+                    MAX(`started_at`) AS `last_seen`
+             FROM `{$this->table('sessions')}`
+             WHERE `steamid64` = ? AND `ended_at` IS NOT NULL
+             GROUP BY `bucket`
+             ORDER BY `sessions` DESC
+             LIMIT {$this->int($limit, 1, 50)}",
+            [$steamid64]
+        );
+    }
+
+    /**
+     * История адресов игрока. ПЕРСОНАЛЬНЫЕ ДАННЫЕ.
+     *
+     * Вызывается только при праве admin.connecthistory.pii — как и колонки
+     * player_ip в таблицах, запрос без права просто не выполняется.
+     *
+     * Группировка по адресу, а не по сессии: список из трёхсот строк с одним
+     * и тем же IP не отвечает ни на один вопрос, а «с этого адреса заходил
+     * тогда-то и столько-то раз» — отвечает.
+     */
+    public function playerIpHistory(string $steamid64, int $limit = 50): array
+    {
+        return $this->fetch(
+            "SELECT `player_ip`, `ip_subnet`, `ip_hash`,
+                    MAX(`country_iso`) AS `country_iso`,
+                    MAX(`country_name`) AS `country_name`,
+                    MAX(`city`) AS `city`,
+                    COUNT(*) AS `sessions`,
+                    MIN(`started_at`) AS `first_seen`,
+                    MAX(`started_at`) AS `last_seen`
+             FROM `{$this->table('sessions')}`
+             WHERE `steamid64` = ? AND (`player_ip` IS NOT NULL OR `ip_hash` IS NOT NULL)
+             GROUP BY `player_ip`, `ip_subnet`, `ip_hash`
+             ORDER BY `last_seen` DESC
+             LIMIT {$this->int($limit, 1, 200)}",
+            [$steamid64]
+        );
+    }
+
+    /**
      * Возможные мультиаккаунты: другие SteamID с того же хеша IP или подсети.
      *
      * Персональные данные — метод вызывается только при праве admin.connecthistory.pii.

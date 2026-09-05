@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Flute\Modules\ConnectHistory\Services;
 
+use DateTimeImmutable;
+use DateTimeZone;
+use Throwable;
+
 /**
  * Форматирование значений, общее для экранов и виджетов.
  *
@@ -12,6 +16,37 @@ namespace Flute\Modules\ConnectHistory\Services;
  */
 final class Format
 {
+    /**
+     * Время из базы (UTC) в поясе панели.
+     *
+     * В базе всё лежит в UTC — это соглашение плагина. Единственное место,
+     * где UTC покидает данные, — вывод, и оно должно быть одно на модуль,
+     * иначе экраны и вьюхи начнут показывать разное время для одной строки.
+     */
+    public static function time(mixed $utc, string $format = 'd.m.Y H:i'): string
+    {
+        if (!is_scalar($utc) || (string) $utc === '') {
+            return '—';
+        }
+
+        try {
+            return (new DateTimeImmutable((string) $utc, new DateTimeZone('UTC')))
+                ->setTimezone(self::panelTimezone())
+                ->format($format);
+        } catch (Throwable) {
+            return '—';
+        }
+    }
+
+    public static function panelTimezone(): DateTimeZone
+    {
+        try {
+            return new DateTimeZone((string) config('app.timezone', 'UTC'));
+        } catch (Throwable) {
+            return new DateTimeZone('UTC');
+        }
+    }
+
     /** «2 ч 14 мин» вместо «8040». */
     public static function duration(mixed $seconds): string
     {

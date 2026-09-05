@@ -31,8 +31,10 @@ export work on whatever the filters currently select.
 
 **Players** — playtime, session counts, cohorts by first visit.
 
-**Player card** — aggregates, daily activity, nickname history, recent sessions and —
-with the right permission — possible alt accounts by IP hash.
+**Player card** — a lifetime combat summary (K/D, headshots, MVP, rounds, ping),
+daily activity, nickname history, servers played on, favourite maps, how they usually
+leave, recent sessions. With the `pii` permission — address history (one row per
+address, not per session) and possible alt accounts by IP hash.
 
 **Servers** — the registry, live online count, uptime and crashes. It also surfaces
 servers whose public address the plugin could not determine.

@@ -172,26 +172,12 @@ trait ResolvesHistory
      */
     protected function toPanelTime(mixed $utc, string $format = 'd.m.Y H:i'): string
     {
-        if (!is_scalar($utc) || (string) $utc === '') {
-            return '—';
-        }
-
-        try {
-            $moment = new DateTimeImmutable((string) $utc, new DateTimeZone('UTC'));
-
-            return $moment->setTimezone($this->panelTimezone())->format($format);
-        } catch (Throwable) {
-            return '—';
-        }
+        return Format::time($utc, $format);
     }
 
     protected function panelTimezone(): DateTimeZone
     {
-        try {
-            return new DateTimeZone((string) config('app.timezone', 'UTC'));
-        } catch (Throwable) {
-            return new DateTimeZone('UTC');
-        }
+        return Format::panelTimezone();
     }
 
     /** «2 ч 14 мин» вместо «8040». Форматирование общее с виджетами — см. Format. */
