@@ -2,6 +2,14 @@
 
 [English](README.md) · Русский
 
+[![CI](https://github.com/Armatura-Create/ConnectHistory-Flute/actions/workflows/ci.yml/badge.svg)](https://github.com/Armatura-Create/ConnectHistory-Flute/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Armatura-Create/ConnectHistory-Flute?logo=github&color=success)](https://github.com/Armatura-Create/ConnectHistory-Flute/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Armatura-Create/ConnectHistory-Flute/total?logo=github&color=success)](https://github.com/Armatura-Create/ConnectHistory-Flute/releases)
+
+[![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777bb4?logo=php&logoColor=white)](https://www.php.net/)
+[![Flute CMS](https://img.shields.io/badge/Flute%20CMS-%E2%89%A5%201.0.7-f97316)](https://github.com/Flute-CMS/cms)
+[![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
+
 Раздел «История и статистика игроков» для панели [Flute CMS](https://github.com/Flute-CMS/cms).
 Читает базу, которую наполняет плагин
 [ConnectHistoryCS2](https://github.com/Armatura-Create/ConnectHistoryCS2) на игровом сервере.
@@ -29,7 +37,7 @@
 
 ## Установка
 
-1. Скачайте архив со [страницы релизов](https://github.com/Armatura-Create/ConnectHistoryFlute/releases)
+1. Скачайте архив со [страницы релизов](https://github.com/Armatura-Create/ConnectHistory-Flute/releases)
    и распакуйте в `app/Modules/` панели.
 2. Админ-панель → **Модули** → активировать **ConnectHistory**.
 3. Админ-панель → **Серверы** → нужный сервер → добавить подключение к базе,

@@ -2,6 +2,14 @@
 
 English · [Русский](README.ru.md)
 
+[![CI](https://github.com/Armatura-Create/ConnectHistory-Flute/actions/workflows/ci.yml/badge.svg)](https://github.com/Armatura-Create/ConnectHistory-Flute/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Armatura-Create/ConnectHistory-Flute?logo=github&color=success)](https://github.com/Armatura-Create/ConnectHistory-Flute/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Armatura-Create/ConnectHistory-Flute/total?logo=github&color=success)](https://github.com/Armatura-Create/ConnectHistory-Flute/releases)
+
+[![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777bb4?logo=php&logoColor=white)](https://www.php.net/)
+[![Flute CMS](https://img.shields.io/badge/Flute%20CMS-%E2%89%A5%201.0.7-f97316)](https://github.com/Flute-CMS/cms)
+[![License](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
+
 A player history and statistics section for the [Flute CMS](https://github.com/Flute-CMS/cms)
 admin panel. It reads the database filled by the
 [ConnectHistoryCS2](https://github.com/Armatura-Create/ConnectHistoryCS2) plugin
@@ -31,7 +39,7 @@ servers whose public address the plugin could not determine.
 
 ## Installation
 
-1. Download the archive from the [releases page](https://github.com/Armatura-Create/ConnectHistoryFlute/releases)
+1. Download the archive from the [releases page](https://github.com/Armatura-Create/ConnectHistory-Flute/releases)
    and unpack it into the panel's `app/Modules/`.
 2. Admin panel → **Modules** → enable **ConnectHistory**.
 3. Admin panel → **Servers** → your server → add a database connection with
