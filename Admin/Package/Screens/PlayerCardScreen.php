@@ -128,7 +128,7 @@ class PlayerCardScreen extends Screen
                 ->type(Color::OUTLINE_DEFAULT),
             Button::make(__('connecthistory.player.all_sessions'))
                 ->icon('ph.regular.clock-counter-clockwise')
-                ->href(url('/admin/connect-history/sessions')->addParams(['search' => $this->steamid64])),
+                ->href((string) url('/admin/connect-history/sessions')->addParams(['search' => $this->steamid64])),
         ];
 
         if (($this->identity['user_id'] ?? null) !== null) {
@@ -136,7 +136,7 @@ class PlayerCardScreen extends Screen
                 $bar,
                 Button::make(__('connecthistory.player.open_profile'))
                     ->icon('ph.regular.user')
-                    ->href(url('/admin/users/' . (int) $this->identity['user_id']))
+                    ->href((string) url('/admin/users/' . (int) $this->identity['user_id']))
             );
         }
 
@@ -216,7 +216,7 @@ class PlayerCardScreen extends Screen
             TD::make('nickname', __('connecthistory.player.column_alt'))
                 ->render(fn (array $row) => view('connecthistory::admin.cells.player', [
                     'row' => $row,
-                    'link' => url('/admin/connect-history/player/' . rawurlencode((string) $row['steamid64'])),
+                    'link' => (string) url('/admin/connect-history/player/' . rawurlencode((string) $row['steamid64'])),
                 ])->render()),
             TD::make('sessions', __('connecthistory.grouped.sessions'))
                 ->alignCenter()

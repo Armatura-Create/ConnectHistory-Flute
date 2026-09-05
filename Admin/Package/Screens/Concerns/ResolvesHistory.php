@@ -77,11 +77,13 @@ trait ResolvesHistory
     {
         $filters = Filters::make();
 
+        // Селектор нужен только когда есть из чего выбирать: при одной привязке
+        // статистика и так считается по её серверу (HistoryRepository::for).
         if (count($this->serverOptions) > 1) {
             $filters->select(
                 'server',
                 __('connecthistory.filters.server'),
-                $this->serverOptions,
+                ['' => __('connecthistory.filters.all_servers')] + $this->serverOptions,
                 $this->filter?->serverId,
             );
         }

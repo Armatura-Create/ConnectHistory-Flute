@@ -114,6 +114,7 @@ return [
 
     'filters' => [
         'server' => 'Сервер',
+        'all_servers' => 'Все серверы',
         'period' => 'Период',
         'dates' => 'Даты',
         'state' => 'Состояние',

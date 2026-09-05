@@ -86,7 +86,7 @@ class PlayersScreen extends Screen
                     ->width('280px')
                     ->render(static fn (array $row) => view('connecthistory::admin.cells.player', [
                         'row' => $row + ['nickname' => $row['last_nickname'] ?? null],
-                        'link' => url('/admin/connect-history/player/' . rawurlencode((string) $row['steamid64'])),
+                        'link' => (string) url('/admin/connect-history/player/' . rawurlencode((string) $row['steamid64'])),
                     ])->render()),
 
                 TD::make('total_seconds', __('connecthistory.players.column_playtime'))

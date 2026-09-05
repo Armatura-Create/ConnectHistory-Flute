@@ -23,6 +23,11 @@ parameters:
     scanDirectories:
         - .flute/app/Helpers
 
+    # Возвращает подтип вместо Field — без этого не проверяется ни один вызов
+    # в цепочке после Button::make() / Tab::make(), включая типы аргументов.
+    stubFiles:
+        - stubs/Makeable.stub
+
     reportUnmatchedIgnoredErrors: false
 
     # Заглушки ниже — ограничения самой Flute, не модуля. Каждая максимально узкая:
@@ -34,11 +39,6 @@ parameters:
         -
             message: '#Call to an undefined static method Flute\\Core\\Router\\Router::screen\(\)#'
             path: Admin/Package/routes.php
-
-        # Makeable::make() объявлен как ": self", а не ": static", поэтому
-        # Tab::make() и Button::make() статически возвращают Field, теряя подтип.
-        # Цепочки ->icon()/->slug() рабочие: так же написаны экраны ядра.
-        - '#Call to an undefined method Flute\\Admin\\Platform\\Field::(icon|slug|layouts|href|method|type|confirm|badge|active|fullWidth|size|tooltip)\(\)#'
 
         # Blade возвращает объект View, чей render() описан не строго
         - '#Call to an undefined method .*::render\(\)#'

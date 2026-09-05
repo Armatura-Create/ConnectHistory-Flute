@@ -114,6 +114,7 @@ return [
 
     'filters' => [
         'server' => 'Server',
+        'all_servers' => 'All servers',
         'period' => 'Period',
         'dates' => 'Dates',
         'state' => 'State',
