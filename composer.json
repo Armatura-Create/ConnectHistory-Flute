@@ -1,0 +1,47 @@
+{
+    "name": "armatura/connect-history-flute",
+    "description": "Модуль Flute CMS: история подключений и статистика игроков из плагина ConnectHistory (CS2)",
+    "type": "flute-module",
+    "license": "GPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Armatura",
+            "email": "alext303@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.18",
+        "phpstan/phpstan": "^2.2",
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Flute\\Modules\\ConnectHistory\\": ""
+        },
+        "exclude-from-classmap": [
+            "tests/"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Flute\\Modules\\ConnectHistory\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "lint": "pint --test",
+        "fix": "pint",
+        "stan": "phpstan analyse --no-progress",
+        "stan:flute": "phpstan analyse -c phpstan.flute.neon --no-progress"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "wikimedia/composer-merge-plugin": true,
+            "composer/installers": true
+        }
+    }
+}

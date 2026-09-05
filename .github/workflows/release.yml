@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Тег для ручного релиза (например v1.1.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+
+      # Версия модуля — одна на весь репозиторий, источник правды тег.
+      # Расхождение между тегом и module.json приводит к тому, что панель
+      # показывает не ту версию, которую скачали.
+      - name: Сверить версию с тегом
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          MANIFEST=$(php -r 'echo json_decode(file_get_contents("module.json"))->version;')
+
+          echo "Тег: $TAG -> версия $VERSION, в module.json: $MANIFEST"
+
+          if [ "$VERSION" != "$MANIFEST" ]; then
+            echo "::error::module.json содержит версию $MANIFEST, а тег говорит $VERSION"
+            exit 1
+          fi
+
+          echo "MODULE_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Установить зависимости
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # Релиз не уезжает, если тесты красные
+      - name: Тесты
+        run: composer test
+
+      # В архив попадает то, что реально нужно панели, и ничего больше:
+      # ни тестов, ни конфигов линтеров, ни vendor с dev-зависимостями.
+      - name: Собрать архив
+        run: |
+          set -euo pipefail
+          STAGE=$(mktemp -d)
+          mkdir -p "$STAGE/ConnectHistory"
+
+          cp -r Admin Providers Services Resources docs "$STAGE/ConnectHistory/"
+          cp module.json Installer.php README.md README.ru.md LICENSE "$STAGE/ConnectHistory/"
+
+          ( cd "$STAGE" && zip -r -q ConnectHistory.zip ConnectHistory )
+          cp "$STAGE/ConnectHistory.zip" .
+
+          unzip -l ConnectHistory.zip
+
+      - name: Проверить содержимое архива
+        run: |
+          set -euo pipefail
+
+          for required in \
+            "ConnectHistory/module.json" \
+            "ConnectHistory/Installer.php" \
+            "ConnectHistory/Providers/ConnectHistoryProvider.php" \
+            "ConnectHistory/Admin/Package/routes.php" \
+            "ConnectHistory/Services/HistoryRepository.php" \
+            "ConnectHistory/Resources/lang/ru/connecthistory.php" \
+            "ConnectHistory/Resources/views/admin/not-configured.blade.php"
+          do
+            unzip -l ConnectHistory.zip | grep -q -F "$required" \
+              || { echo "::error::в архиве нет $required"; exit 1; }
+          done
+
+          # Разработческое добро в релизе означает, что кто-то поправил сборку
+          # и не заметил: панели оно не нужно, а vendor ещё и весит.
+          for forbidden in "tests/" "vendor/" "composer.json" "phpunit.xml" "pint.json" ".github/"
+          do
+            if unzip -l ConnectHistory.zip | grep -q -F "$forbidden"; then
+              echo "::error::в архив попало лишнее: $forbidden"
+              exit 1
+            fi
+          done
+
+      - name: Создать релиз
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: ${{ github.event.inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          files: ConnectHistory.zip
+          body: |
+            Требуются **Flute CMS >= 1.0.7** и **PHP >= 8.2**.
+
+            Распакуйте архив в `app/Modules/` панели — каталог `ConnectHistory/`
+            уже внутри. Затем: Модули → активировать, после чего
+            Серверы → подключение к базе → тип **ConnectHistory**.
+
+            Модуль читает базу, которую наполняет игровой плагин
+            [ConnectHistoryCS2](https://github.com/Armatura-Create/ConnectHistoryCS2).
+            Пользователю базы достаточно права `SELECT`.

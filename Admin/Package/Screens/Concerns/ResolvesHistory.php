@@ -1,0 +1,239 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Flute\Modules\ConnectHistory\Admin\Package\Screens\Concerns;
+
+use DateTimeImmutable;
+use DateTimeZone;
+use Flute\Admin\Platform\Layouts\Filters;
+use Flute\Modules\ConnectHistory\Admin\Package\ConnectHistoryPackage;
+use Flute\Modules\ConnectHistory\Services\HistoryRepository;
+use Flute\Modules\ConnectHistory\Services\PlayerIdentityService;
+use Flute\Modules\ConnectHistory\Services\SessionFilter;
+use Throwable;
+
+/**
+ * Общее для всех экранов раздела: разбор фильтров, выбор сервера, права и форматирование.
+ *
+ * Смысл трейта — чтобы каждое чтение данных начиналось одинаково и после проверки
+ * прав. Ни один экран не обращается к базе, пока не отработал bootHistory().
+ */
+trait ResolvesHistory
+{
+    protected ?HistoryRepository $history = null;
+
+    protected ?SessionFilter $filter = null;
+
+    /** @var array<int, string> id сервера панели -> название */
+    protected array $serverOptions = [];
+
+    protected bool $configured = false;
+
+    /**
+     * Вызывается первой строкой mount() каждого экрана.
+     */
+    protected function bootHistory(): void
+    {
+        $this->serverOptions = HistoryRepository::serverOptions();
+        $this->filter = SessionFilter::fromArray(request()->query->all(), [
+            'max_period_days' => (int) config('connecthistory.max_period_days', 365),
+            'default_period_days' => (int) config('connecthistory.default_period_days', 7),
+            'short_session_seconds' => (int) config('connecthistory.short_session_seconds', 60),
+        ]);
+
+        $this->history = HistoryRepository::for($this->filter->serverId);
+        $this->configured = $this->history !== null;
+    }
+
+    /** Персональные данные — отдельное право, а не отдельная колонка в вёрстке. */
+    protected function canSeePii(): bool
+    {
+        try {
+            return user()->can(ConnectHistoryPackage::PERMISSION_PII);
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Базовые фильтры: сервер и период. Экраны добавляют свои поверх.
+     */
+    protected function baseFilters(): Filters
+    {
+        $filters = Filters::make();
+
+        if (count($this->serverOptions) > 1) {
+            $filters->select(
+                'server',
+                __('connecthistory.filters.server'),
+                $this->serverOptions,
+                $this->filter?->serverId,
+            );
+        }
+
+        return $filters->buttonGroup('period', __('connecthistory.filters.period'), [
+            '1d' => __('connecthistory.periods.day'),
+            '7d' => __('connecthistory.periods.week'),
+            '30d' => __('connecthistory.periods.month'),
+            '90d' => __('connecthistory.periods.quarter'),
+            '180d' => __('connecthistory.periods.half_year'),
+            '365d' => __('connecthistory.periods.year'),
+        ], '7d')->dateRange('date', __('connecthistory.filters.dates'));
+    }
+
+    // --- личности игроков --------------------------------------------------
+
+    /**
+     * Одна пачка на страницу: собирает SteamID из строк и разрешает их разом.
+     *
+     * @param iterable<array<string, mixed>> $rows
+     * @return array<string, array<string, mixed>>
+     */
+    protected function identities(iterable $rows, string $idKey = 'steamid64', string $nameKey = 'nickname'): array
+    {
+        $ids = [];
+        $names = [];
+
+        foreach ($rows as $row) {
+            $id = (string) ($row[$idKey] ?? '');
+
+            if ($id === '') {
+                continue;
+            }
+
+            $ids[] = $id;
+
+            $name = $row[$nameKey] ?? null;
+
+            if (is_scalar($name) && trim((string) $name) !== '') {
+                $names[$id] = (string) $name;
+            }
+        }
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return app(PlayerIdentityService::class)->resolveMany($ids, $names);
+    }
+
+    // --- форматирование ----------------------------------------------------
+
+    /**
+     * Время в базе — UTC. Пользователю показываем в поясе панели, иначе
+     * «последний заход» врёт на несколько часов.
+     */
+    protected function toPanelTime(mixed $utc, string $format = 'd.m.Y H:i'): string
+    {
+        if (!is_scalar($utc) || (string) $utc === '') {
+            return '—';
+        }
+
+        try {
+            $moment = new DateTimeImmutable((string) $utc, new DateTimeZone('UTC'));
+
+            return $moment->setTimezone($this->panelTimezone())->format($format);
+        } catch (Throwable) {
+            return '—';
+        }
+    }
+
+    protected function panelTimezone(): DateTimeZone
+    {
+        try {
+            return new DateTimeZone((string) config('app.timezone', 'UTC'));
+        } catch (Throwable) {
+            return new DateTimeZone('UTC');
+        }
+    }
+
+    /** «2 ч 14 мин» вместо «8040». */
+    protected function humanDuration(mixed $seconds): string
+    {
+        if (!is_numeric($seconds)) {
+            return '—';
+        }
+
+        $total = (int) $seconds;
+
+        if ($total <= 0) {
+            return '—';
+        }
+
+        $days = intdiv($total, 86400);
+        $hours = intdiv($total % 86400, 3600);
+        $minutes = intdiv($total % 3600, 60);
+
+        if ($days > 0) {
+            return $days . __('connecthistory.units.d') . ' ' . $hours . __('connecthistory.units.h');
+        }
+
+        if ($hours > 0) {
+            return $hours . __('connecthistory.units.h') . ' ' . $minutes . __('connecthistory.units.m');
+        }
+
+        return max(1, $minutes) . __('connecthistory.units.m');
+    }
+
+    /**
+     * Подпись состояния сессии. end_kind = 5 — не мусор, а факт аварийного
+     * завершения сервера, и он должен быть виден.
+     */
+    protected function sessionState(mixed $endedAt, mixed $endKind): array
+    {
+        $kind = (int) $endKind;
+
+        if ($kind === SessionFilter::END_KIND_STALE) {
+            return ['label' => __('connecthistory.state.crashed'), 'color' => 'danger'];
+        }
+
+        if ($endedAt === null || $endedAt === '') {
+            return ['label' => __('connecthistory.state.online'), 'color' => 'success'];
+        }
+
+        return match ($kind) {
+            1 => ['label' => __('connecthistory.state.disconnect'), 'color' => 'muted'],
+            2 => ['label' => __('connecthistory.state.map_change'), 'color' => 'muted'],
+            3 => ['label' => __('connecthistory.state.shutdown'), 'color' => 'warning'],
+            4 => ['label' => __('connecthistory.state.unload'), 'color' => 'warning'],
+            default => ['label' => __('connecthistory.state.closed'), 'color' => 'muted'],
+        };
+    }
+
+    /** Категории оси X из результата агрегирующего запроса. */
+    protected function buckets(array $rows, string $format = 'd.m'): array
+    {
+        return array_map(function (array $row) use ($format): string {
+            $bucket = (string) ($row['bucket'] ?? '');
+
+            try {
+                return (new DateTimeImmutable($bucket, new DateTimeZone('UTC')))
+                    ->setTimezone($this->panelTimezone())
+                    ->format($format);
+            } catch (Throwable) {
+                // Не дата — значит подпись уже готова (карта, страна, причина выхода)
+                return $bucket;
+            }
+        }, $rows);
+    }
+
+    /** @return array<int, int|float> */
+    protected function column(array $rows, string $key): array
+    {
+        return array_map(static fn (array $row) => 0 + ($row[$key] ?? 0), $rows);
+    }
+
+    /** Кеш вокруг агрегата: одинаковые фильтры не должны считаться дважды. */
+    protected function cached(string $scope, callable $producer, ?int $ttl = null): mixed
+    {
+        $key = ($this->filter ?? SessionFilter::fromArray([]))->cacheKey($scope);
+        $ttl ??= (int) config('connecthistory.cache.charts', 300);
+
+        try {
+            return cache()->callback($key, $producer, $ttl);
+        } catch (Throwable) {
+            return $producer();
+        }
+    }
+}

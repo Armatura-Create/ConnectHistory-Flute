@@ -1,0 +1,24 @@
+# Базовый конфиг: работает БЕЗ установленной Flute.
+#
+# Анализируются только классы, которые ничего из CMS не наследуют — сервисы.
+# Экраны, провайдер и инсталлятор наследуют классы Flute, а "extends unknown
+# class" в PHPStan не заглушается принципиально: без родителя анализ
+# невозможен. Их проверяет CI-джоба flute-compat по phpstan.flute.neon,
+# где Flute установлена по-настоящему.
+parameters:
+    level: 5
+
+    paths:
+        - Services
+
+    reportUnmatchedIgnoredErrors: false
+
+    # Сервисы ссылаются на классы Flute/Cycle, но не наследуют их — такие
+    # сообщения глушатся, чтобы не прятать за ними настоящие находки
+    # (мёртвые ветки, расхождение PHPDoc с кодом, ошибки типов).
+    ignoreErrors:
+        - '#unknown class (Flute|Cycle|Illuminate)\\#'
+        - '#(Class|Interface|Trait) (Flute|Cycle|Illuminate)\\[A-Za-z0-9_\\]+ not found#'
+        - '#Instantiated class (Flute|Cycle|Illuminate)\\[A-Za-z0-9_\\]+ not found#'
+        - '#Function (app|db|dbal|cache|config|logs|steam|url|__|template|breadcrumb|request|router|user|view|collect|e) not found#'
+        - '#has invalid (return )?type (Flute|Cycle|Illuminate)\\#'

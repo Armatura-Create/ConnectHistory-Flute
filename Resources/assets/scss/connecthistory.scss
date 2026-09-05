@@ -1,0 +1,22 @@
+// Модуль почти не имеет собственного оформления: экраны построены на готовых
+// слоях админ-платформы (Filters, Table, Metric, Chart), и переопределять их
+// стили значило бы расходиться с панелью при каждом её обновлении.
+//
+// Здесь только то, чего в платформе нет.
+
+.ch-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-400);
+}
+
+// Длинные значения (SteamID64, хеш IP, адрес сервера) не должны растягивать
+// таблицу и включать горизонтальную прокрутку всей страницы.
+.ch-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    color: var(--text-500);
+    word-break: break-all;
+}

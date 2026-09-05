@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # Быстрая проверка: чистая логика модуля, без CMS.
+  # Сюда попадает всё, что можно проверить, не поднимая Flute: нормализация
+  # фильтров, разбор настроек подключения, сборка личности игрока, переводы.
+  lint-test:
+    name: Тесты и стиль (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+
+      - name: Проверить composer.json
+        run: composer validate --strict --no-check-publish
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ matrix.php }}-${{ hashFiles('composer.json') }}
+          restore-keys: composer-${{ matrix.php }}-
+
+      - name: Установить зависимости
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Тесты
+        run: composer test
+
+      # Pint требует PHP 8.3+, поэтому стиль проверяется на одной версии:
+      # он и не зависит от версии рантайма.
+      - name: Стиль кода
+        if: matrix.php == '8.3'
+        run: composer lint
+
+      - name: Статический анализ
+        if: matrix.php == '8.3'
+        run: composer stan
+
+  # Главная джоба. Ловит ровно ту поломку, которая убила предыдущий модуль:
+  # класс Flute переехал, модуль об этом узнал в проде (docs/AUTOPSY.md №4 и №5).
+  flute-compat:
+    name: Совместимость с Flute
+    runs-on: ubuntu-latest
+
+    env:
+      # Целевая версия CMS. Поднимается здесь и в module.json (dependencies.flute).
+      FLUTE_VERSION: v1.0.7
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-flute-${{ hashFiles('composer.json') }}-${{ env.FLUTE_VERSION }}
+          restore-keys: composer-flute-
+
+      - name: Зависимости модуля
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      # CMS ставится РЯДОМ, а не в vendor модуля.
+      #
+      # Причина: flute-cms/cms — пакет типа "project", как библиотека он не
+      # устанавливается (composer require обрывается на постустановочных шагах).
+      # Плюс его зависимости конфликтуют с инструментами разработки модуля.
+      # Клон в .flute/ решает обе проблемы разом.
+      - name: Клонировать Flute ${{ env.FLUTE_VERSION }}
+        run: |
+          git clone --depth 1 --branch "$FLUTE_VERSION" \
+            https://github.com/Flute-CMS/cms.git .flute
+          cd .flute
+          composer install --no-interaction --prefer-dist --no-progress \
+            --no-scripts --ignore-platform-reqs
+
+      # Каждый символ Flute\* и Cycle\*, на который ссылается модуль,
+      # обязан существовать в этой версии CMS.
+      - name: Проверить символы Flute
+        run: php tests/compat/assert-flute-classes.php --verbose
+
+      # Полный анализ с настоящими классами: без Flute экраны не проверяются
+      # в принципе — они наследуют её классы, а "extends unknown class"
+      # в PHPStan не заглушается.
+      - name: Статический анализ с Flute
+        run: composer stan:flute

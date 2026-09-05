@@ -1,0 +1,29 @@
+# Зависимости
+/vendor/
+
+# Клон Flute для проверки совместимости (создаётся в CI)
+/.flute/
+
+# Кеши инструментов
+/.phpunit.cache/
+/.php-cs-fixer.cache
+.phpunit.result.cache
+
+# Сборка релиза
+/ConnectHistory.zip
+
+# Локальные переопределения composer
+composer.lock
+
+# IDE
+.idea/
+.vs/
+.fleet/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Граф кода: генерируется локально
+graphify-out/

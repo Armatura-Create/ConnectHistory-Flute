@@ -1,0 +1,11 @@
+{
+    "name": "ConnectHistory",
+    "version": "1.0.0",
+    "description": "История подключений и статистика игроков из плагина ConnectHistory (CS2)",
+    "authors": ["Armatura"],
+    "providers": ["Flute\\Modules\\ConnectHistory\\Providers\\ConnectHistoryProvider"],
+    "dependencies": {
+        "php": ">=8.2",
+        "flute": ">=1.0.7"
+    }
+}

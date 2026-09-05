@@ -1,0 +1,44 @@
+# Полный анализ: используется в CI-джобе flute-compat, где рядом с модулем
+# лежит клон Flute в каталоге .flute/ (см. .github/workflows/ci.yml).
+#
+# Здесь НЕТ глушения отсутствующих символов — в этом весь смысл. Если класс или
+# метод Flute переехал, анализ обязан покраснеть. Ровно такой переезд
+# (Flute\Core\Modules\ModuleInformation -> Flute\Core\ModulesManager\...)
+# убил предыдущий модуль, и заметили это только в проде (docs/AUTOPSY.md №4).
+parameters:
+    level: 5
+
+    paths:
+        - Admin
+        - Providers
+        - Services
+        - Installer.php
+
+    # Автозагрузчик CMS: без него не резолвятся родительские классы экранов,
+    # а значит анализ невозможен в принципе.
+    bootstrapFiles:
+        - .flute/vendor/autoload.php
+
+    # Хелперы Flute объявлены обычными функциями в app/Helpers/*.php.
+    scanDirectories:
+        - .flute/app/Helpers
+
+    reportUnmatchedIgnoredErrors: false
+
+    # Заглушки ниже — ограничения самой Flute, не модуля. Каждая максимально узкая:
+    # настоящая поломка (переезд класса, исчезнувший метод) сквозь них пройдёт.
+    ignoreErrors:
+        # Router::screen() — рантайм-макрос, регистрируется в AdminPanel.php через
+        # Router::macro('screen', ...). Статически такой метод не существует ни для
+        # этого модуля, ни для routes.php самой Flute.
+        -
+            message: '#Call to an undefined static method Flute\\Core\\Router\\Router::screen\(\)#'
+            path: Admin/Package/routes.php
+
+        # Makeable::make() объявлен как ": self", а не ": static", поэтому
+        # Tab::make() и Button::make() статически возвращают Field, теряя подтип.
+        # Цепочки ->icon()/->slug() рабочие: так же написаны экраны ядра.
+        - '#Call to an undefined method Flute\\Admin\\Platform\\Field::(icon|slug|layouts|href|method|type|confirm|badge|active|fullWidth|size|tooltip)\(\)#'
+
+        # Blade возвращает объект View, чей render() описан не строго
+        - '#Call to an undefined method .*::render\(\)#'
