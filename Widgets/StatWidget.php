@@ -64,9 +64,15 @@ class StatWidget extends AbstractWidget
         return 'ph.regular.chart-line-up';
     }
 
+    /**
+     * Категории виджетов переводятся ядром по ключу page.categories.<категория>,
+     * поэтому выдумывать свою нельзя — получится «page.categories.statistics»
+     * вместо названия. Существующие: general, users, user, content, media, other,
+     * payments, admin, stats, system, social.
+     */
     public function getCategory(): string
     {
-        return 'statistics';
+        return 'stats';
     }
 
     public function getDefaultWidth(): int
@@ -128,7 +134,32 @@ class StatWidget extends AbstractWidget
         ];
     }
 
+    /**
+     * ВАЖНО: этот метод не имеет права ни бросить исключение, ни вернуть null.
+     *
+     * WidgetController::saveSettings() вызывает render() СРАЗУ после сохранения
+     * и кладёт результат в JSON-ответ. Исключение там перехватывается и вместо
+     * JSON возвращается HTML формы — для фронтенда это выглядит как «сохранение
+     * не работает». null же превращается в пустой виджет без единого слова
+     * о причине.
+     *
+     * Поэтому любая проблема показывается карточкой с текстом, а не молчанием.
+     */
     public function render(array $settings): ?string
+    {
+        try {
+            return $this->renderCard($settings);
+        } catch (Throwable $e) {
+            logs()->error('[ConnectHistory] Виджет не отрисовался: ' . $e->getMessage());
+
+            return $this->placeholder(__('connecthistory.widget.error'));
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     */
+    private function renderCard(array $settings): string
     {
         $settings = array_merge($this->getSettings(), $settings);
         $metric = isset(self::METRICS[$settings['metric']]) ? (string) $settings['metric'] : 'online_now';
@@ -137,10 +168,10 @@ class StatWidget extends AbstractWidget
 
         $repository = HistoryRepository::for($serverId);
 
-        // База не подключена — виджет молчит, а не показывает ноль:
-        // ноль означал бы «данных нет», а не «модуль не настроен».
+        // Ноль означал бы «данных нет», а не «модуль не настроен», поэтому
+        // вместо числа показывается причина.
         if ($repository === null) {
-            return null;
+            return $this->placeholder(__('connecthistory.widget.not_configured'));
         }
 
         $filter = SessionFilter::fromArray(
@@ -156,7 +187,7 @@ class StatWidget extends AbstractWidget
         } catch (Throwable $e) {
             logs()->warning('[ConnectHistory] Виджет не смог получить данные: ' . $e->getMessage());
 
-            return null;
+            return $this->placeholder(__('connecthistory.widget.unavailable'));
         }
 
         return view('connecthistory::widgets.stat', [
@@ -210,6 +241,15 @@ class StatWidget extends AbstractWidget
             'percent' => Format::percent($value),
             default => Format::number($value),
         };
+    }
+
+    /**
+     * Карточка с объяснением вместо числа. Ровно то, чего не хватает, когда
+     * виджет «просто пустой»: видно, что именно пошло не так.
+     */
+    private function placeholder(string $message): string
+    {
+        return view('connecthistory::widgets.placeholder', ['message' => $message])->render();
     }
 
     /** @return array<int, string> */

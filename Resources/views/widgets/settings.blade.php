@@ -42,10 +42,30 @@
             placeholder="{{ __('connecthistory.widget.settings.label_placeholder') }}" />
     </x-forms.field>
 
+    {{--
+        type="icon" — штатное поле панели: даёт поиск по иконкам и предпросмотр
+        выбранной. Оно же обновляет предпросмотр при выборе из списка, но НЕ при
+        ручном вводе имени — этот пробел закрывает обработчик ниже.
+
+        Обработчик написан атрибутом oninput, а не отдельным <script>: форма
+        настроек вставляется в модалку через innerHTML, а вставленный так <script>
+        браузер не выполняет. Атрибут работает в любом случае.
+    --}}
     <x-forms.field class="mb-3">
         <x-forms.label for="icon">{{ __('connecthistory.widget.settings.icon') }}</x-forms.label>
-        <x-fields.input name="icon" id="icon" value="{{ $settings['icon'] }}"
-            placeholder="ph.regular.users-three" />
+
+        <div class="ch-icon-field">
+            <span class="ch-icon-field__preview" data-ch-icon-preview>
+                @if ($settings['icon'])
+                    {!! app(\Flute\Core\Modules\Icons\Services\IconFinder::class)->loadFile($settings['icon']) !!}
+                @endif
+            </span>
+
+            <x-fields.input type="icon" name="icon" id="icon" value="{{ $settings['icon'] }}"
+                placeholder="ph.regular.users-three"
+                oninput="(function(i){var w=i.closest('.ch-icon-field');if(!w)return;var p=w.querySelector('[data-ch-icon-preview]');if(!p)return;clearTimeout(i._chT);i._chT=setTimeout(function(){var v=(i.value||'').trim();if(!v){p.innerHTML='';return;}fetch('{{ url('/admin/api/icons/render') }}?path='+encodeURIComponent(v)).then(function(r){return r.ok?r.text():'';}).then(function(svg){p.innerHTML=svg||'';}).catch(function(){p.innerHTML='';});},350);})(this)" />
+        </div>
+
         <small class="text-muted">{{ __('connecthistory.widget.settings.icon_help') }}</small>
     </x-forms.field>
 

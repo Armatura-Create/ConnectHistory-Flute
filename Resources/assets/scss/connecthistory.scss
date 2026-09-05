@@ -68,3 +68,40 @@
         color: var(--text-500);
     }
 }
+
+// Поле иконки в настройках виджета: предпросмотр слева от ввода.
+// Штатный пикер панели обновляет свой предпросмотр только при выборе из списка,
+// поэтому здесь свой — он реагирует и на ручной ввод имени.
+.ch-icon-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    &__preview {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: var(--transp-05);
+        color: var(--text-400);
+        font-size: 18px;
+
+        svg {
+            width: 20px;
+            height: 20px;
+        }
+    }
+
+    > *:not(&__preview) {
+        flex: 1;
+        min-width: 0;
+    }
+}
+
+.ch-stat--empty .ch-stat__label {
+    font-size: 12px;
+    line-height: 1.4;
+}

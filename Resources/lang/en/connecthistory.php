@@ -280,6 +280,9 @@ return [
     'widget' => [
         'name' => 'History: metric',
         'description' => 'A single number from the connection history: metric, server and period are picked in the settings',
+        'not_configured' => 'The module is not configured: connect the history database in the Servers section',
+        'unavailable' => 'History data is currently unavailable',
+        'error' => 'The widget could not be rendered — see the panel logs',
         'metrics' => [
             'online_now' => 'On the server now',
             'players' => 'Unique players',

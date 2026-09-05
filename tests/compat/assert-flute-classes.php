@@ -91,14 +91,16 @@ if (!class_exists('Flute\\Core\\Support\\ModuleServiceProvider')) {
 }
 
 /** Каталоги модуля, где могут встречаться ссылки на символы Flute. */
-$directories = ['Admin', 'Providers', 'Services', 'Widgets'];
+// Вьюхи тоже ссылаются на классы CMS (IconFinder в форме настроек виджета),
+// и их переезд ломает страницу так же, как переезд класса в PHP-коде.
+$directories = ['Admin', 'Providers', 'Services', 'Widgets', 'Resources/views'];
 $files = [$root . '/Installer.php'];
 
 foreach ($directories as $directory) {
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/' . $directory));
 
     foreach ($iterator as $file) {
-        if ($file->isFile() && $file->getExtension() === 'php') {
+        if ($file->isFile() && in_array($file->getExtension(), ['php'], true)) {
             $files[] = $file->getPathname();
         }
     }
