@@ -2,7 +2,7 @@
     <div class="card-body text-center" style="padding: 48px 24px;">
         <i class="ph ph-user-minus" style="font-size: 48px; color: var(--text-400);"></i>
 
-        <h3 style="margin-top: 16px;">{{ __('connecthistory.player.not_found') }}</h3>
+        <h4 style="margin-top: 16px;">{{ __('connecthistory.player.not_found') }}</h4>
 
         <p class="text-muted" style="max-width: 560px; margin: 12px auto 24px;">
             {{ __('connecthistory.player.not_found_description') }}

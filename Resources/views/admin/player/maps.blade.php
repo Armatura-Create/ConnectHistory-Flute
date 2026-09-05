@@ -8,7 +8,7 @@
 
 <div class="card ch-block">
     <div class="card-header">
-        <h2>{{ __('connecthistory.player.maps_title') }}</h2>
+        <h5 class="ch-block__title">{{ __('connecthistory.player.maps_title') }}</h5>
     </div>
 
     <div class="card-body">

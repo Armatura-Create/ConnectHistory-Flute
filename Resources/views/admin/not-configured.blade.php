@@ -7,7 +7,7 @@
     <div class="card-body text-center" style="padding: 48px 24px;">
         <i class="ph ph-plugs" style="font-size: 48px; color: var(--text-400);"></i>
 
-        <h3 style="margin-top: 16px;">{{ __('connecthistory.setup.title') }}</h3>
+        <h4 style="margin-top: 16px;">{{ __('connecthistory.setup.title') }}</h4>
 
         <p class="text-muted" style="max-width: 620px; margin: 12px auto 24px;">
             {{ __('connecthistory.setup.description') }}

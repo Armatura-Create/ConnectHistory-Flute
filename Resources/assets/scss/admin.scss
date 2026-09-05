@@ -121,6 +121,20 @@
     // Блоки стоят парами в ряду — без общей высоты ряд выглядит рваным
     height: 100%;
 
+    .card-header {
+        padding-bottom: 10px;
+    }
+
+    // Заголовок блока не должен спорить с данными за внимание: блоков на
+    // карточке шесть, и крупные шапки превращают её в список заголовков.
+    &__title {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: var(--text-300, var(--text));
+    }
+
     &__row {
         display: flex;
         flex-direction: column;
