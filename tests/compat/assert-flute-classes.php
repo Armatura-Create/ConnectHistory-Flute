@@ -91,7 +91,7 @@ if (!class_exists('Flute\\Core\\Support\\ModuleServiceProvider')) {
 }
 
 /** Каталоги модуля, где могут встречаться ссылки на символы Flute. */
-$directories = ['Admin', 'Providers', 'Services'];
+$directories = ['Admin', 'Providers', 'Services', 'Widgets'];
 $files = [$root . '/Installer.php'];
 
 foreach ($directories as $directory) {

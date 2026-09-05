@@ -37,6 +37,12 @@ with the right permission — possible alt accounts by IP hash.
 **Servers** — the registry, live online count, uptime and crashes. It also surfaces
 servers whose public address the plugin could not determine.
 
+**The "History: metric" widget** — a single number on any site page. Its settings pick
+the metric (online now, unique players, connects, newcomers, peak online, average
+session, hours played, retention, crashes), the server, the period, a custom caption
+and an icon. The result is cached twice — the rendered HTML and the query itself —
+so a widget on a busy page does not turn into a stream of database hits.
+
 ## Installation
 
 1. Download the archive from the [releases page](https://github.com/Armatura-Create/ConnectHistory-Flute/releases)

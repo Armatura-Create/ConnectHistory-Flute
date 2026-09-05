@@ -59,7 +59,7 @@ jobs:
           STAGE=$(mktemp -d)
           mkdir -p "$STAGE/ConnectHistory"
 
-          cp -r Admin Providers Services Resources docs "$STAGE/ConnectHistory/"
+          cp -r Admin Providers Services Widgets Resources docs "$STAGE/ConnectHistory/"
           cp module.json Installer.php README.md README.ru.md LICENSE "$STAGE/ConnectHistory/"
 
           ( cd "$STAGE" && zip -r -q ConnectHistory.zip ConnectHistory )
@@ -77,6 +77,7 @@ jobs:
             "ConnectHistory/Providers/ConnectHistoryProvider.php" \
             "ConnectHistory/Admin/Package/routes.php" \
             "ConnectHistory/Services/HistoryRepository.php" \
+            "ConnectHistory/Widgets/StatWidget.php" \
             "ConnectHistory/Resources/lang/ru/connecthistory.php" \
             "ConnectHistory/Resources/views/admin/not-configured.blade.php"
           do

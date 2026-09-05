@@ -137,16 +137,26 @@ class SessionsScreen extends Screen
             'reasons' => $this->history->reasonOptions($this->filter),
         ]);
 
+        // Первым пунктом каждого списка идёт его собственное название: шаблон
+        // Filters в ядре не выводит label для select, и без этого в ряд встают
+        // три одинаковых «Выберите опцию». Значение '' = «не фильтровать».
         if ($options['maps'] !== []) {
-            $filters->select('map', __('connecthistory.filters.map'), $options['maps'], $this->filter->map);
+            $filters->select(
+                'map',
+                __('connecthistory.filters.map'),
+                ['' => __('connecthistory.filters.all_maps')] + $options['maps'],
+                $this->filter->map,
+                allowEmpty: false,
+            );
         }
 
         if ($options['countries'] !== []) {
             $filters->select(
                 'country',
                 __('connecthistory.filters.country'),
-                $options['countries'],
-                $this->filter->country
+                ['' => __('connecthistory.filters.all_countries')] + $options['countries'],
+                $this->filter->country,
+                allowEmpty: false,
             );
         }
 
@@ -154,8 +164,9 @@ class SessionsScreen extends Screen
             $filters->select(
                 'reason',
                 __('connecthistory.filters.reason'),
-                $options['reasons'],
-                $this->filter->reason
+                ['' => __('connecthistory.filters.all_reasons')] + $options['reasons'],
+                $this->filter->reason,
+                allowEmpty: false,
             );
         }
 

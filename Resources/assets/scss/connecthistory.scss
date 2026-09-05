@@ -20,3 +20,51 @@
     color: var(--text-500);
     word-break: break-all;
 }
+
+// Виджет с одним числом. Смысл вёрстки один: число — главное на карточке,
+// подпись и период его поясняют, но не спорят с ним за внимание.
+.ch-stat {
+    &__body {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    &__icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
+        background: var(--transp-05);
+        color: var(--text-400);
+        font-size: 20px;
+    }
+
+    &__text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    &__value {
+        font-size: 24px;
+        font-weight: 600;
+        line-height: 1.2;
+        // Число не должно ломать карточку, если оно неожиданно длинное
+        overflow-wrap: anywhere;
+    }
+
+    &__label {
+        font-size: 13px;
+        color: var(--text-400);
+    }
+
+    &__meta {
+        margin-top: 2px;
+        font-size: 11px;
+        color: var(--text-500);
+    }
+}

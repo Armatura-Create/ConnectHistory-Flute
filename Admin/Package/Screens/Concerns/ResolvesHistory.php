@@ -9,6 +9,7 @@ use DateTimeZone;
 use Flute\Admin\Platform\Layouts\Filters;
 use Flute\Admin\Platform\Layouts\LayoutFactory;
 use Flute\Modules\ConnectHistory\Admin\Package\ConnectHistoryPackage;
+use Flute\Modules\ConnectHistory\Services\Format;
 use Flute\Modules\ConnectHistory\Services\HistoryRepository;
 use Flute\Modules\ConnectHistory\Services\PlayerIdentityService;
 use Flute\Modules\ConnectHistory\Services\SessionFilter;
@@ -79,12 +80,18 @@ trait ResolvesHistory
 
         // Селектор нужен только когда есть из чего выбирать: при одной привязке
         // статистика и так считается по её серверу (HistoryRepository::for).
+        //
+        // Первый пункт называет сам фильтр, а не «Выберите опцию»: шаблон Filters
+        // в ядре не выводит label для типа select (в отличие от buttonGroup, input
+        // и checkbox), поэтому без описательного пункта выпадающий список
+        // не сообщает, что именно он фильтрует. Значение '' = «не фильтровать».
         if (count($this->serverOptions) > 1) {
             $filters->select(
                 'server',
                 __('connecthistory.filters.server'),
                 ['' => __('connecthistory.filters.all_servers')] + $this->serverOptions,
                 $this->filter?->serverId,
+                allowEmpty: false,
             );
         }
 
@@ -187,32 +194,10 @@ trait ResolvesHistory
         }
     }
 
-    /** «2 ч 14 мин» вместо «8040». */
+    /** «2 ч 14 мин» вместо «8040». Форматирование общее с виджетами — см. Format. */
     protected function humanDuration(mixed $seconds): string
     {
-        if (!is_numeric($seconds)) {
-            return '—';
-        }
-
-        $total = (int) $seconds;
-
-        if ($total <= 0) {
-            return '—';
-        }
-
-        $days = intdiv($total, 86400);
-        $hours = intdiv($total % 86400, 3600);
-        $minutes = intdiv($total % 3600, 60);
-
-        if ($days > 0) {
-            return $days . __('connecthistory.units.d') . ' ' . $hours . __('connecthistory.units.h');
-        }
-
-        if ($hours > 0) {
-            return $hours . __('connecthistory.units.h') . ' ' . $minutes . __('connecthistory.units.m');
-        }
-
-        return max(1, $minutes) . __('connecthistory.units.m');
+        return Format::duration($seconds);
     }
 
     /**

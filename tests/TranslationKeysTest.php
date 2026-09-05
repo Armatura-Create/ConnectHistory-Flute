@@ -24,6 +24,14 @@ final class TranslationKeysTest extends TestCase
         'charts.heatmap_description', 'charts.newcomers_description',
         'charts.maps_description', 'charts.reasons_description',
         'charts.geo_description', 'charts.crashes_description',
+
+        // Виджет: показатель и период выбираются в настройках, ключи собираются
+        // конкатенацией и в исходниках текстом не встречаются.
+        'widget.metrics.online_now', 'widget.metrics.players', 'widget.metrics.sessions',
+        'widget.metrics.newcomers', 'widget.metrics.peak_online', 'widget.metrics.avg_session',
+        'widget.metrics.total_hours', 'widget.metrics.retention', 'widget.metrics.crashes',
+        'widget.periods.1d', 'widget.periods.7d', 'widget.periods.30d',
+        'widget.periods.90d', 'widget.periods.180d', 'widget.periods.365d',
     ];
 
     private static function root(): string
@@ -65,10 +73,12 @@ final class TranslationKeysTest extends TestCase
     {
         $keys = self::DYNAMIC_KEYS;
 
-        // Services тоже переводит: диагностика подключений собирает сообщения там
+        // Не только экраны: диагностика подключений переводит в Services,
+        // виджет — в Widgets, формы настроек — во вьюхах.
         $directories = [
             self::root() . '/Admin',
             self::root() . '/Services',
+            self::root() . '/Widgets',
             self::root() . '/Resources/views',
         ];
 

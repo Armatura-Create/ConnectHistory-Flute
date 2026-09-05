@@ -12,6 +12,7 @@ parameters:
         - Admin
         - Providers
         - Services
+        - Widgets
         - Installer.php
 
     # Автозагрузчик CMS: без него не резолвятся родительские классы экранов,
