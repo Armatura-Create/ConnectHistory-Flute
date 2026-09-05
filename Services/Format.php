@@ -47,6 +47,37 @@ final class Format
         }
     }
 
+    /**
+     * Ссылка на аватар, пригодная для атрибута src.
+     *
+     * Источники разные: Steam отдаёт абсолютный URL, а у пользователя сайта
+     * в базе лежит ОТНОСИТЕЛЬНЫЙ путь вида assets/... — его обязан развернуть
+     * asset(). Именно поэтому аватары показывались «не всегда»: у найденных
+     * в Steam всё работало, у зарегистрированных на сайте — нет.
+     *
+     * Пусто — путь к аватару по умолчанию, а не пустой src: пустой атрибут
+     * браузер трактует как ссылку на саму страницу и грузит её повторно.
+     */
+    public static function avatar(mixed $avatar): string
+    {
+        $value = is_scalar($avatar) ? trim((string) $avatar) : '';
+
+        if ($value === '') {
+            $value = (string) config('profile.default_avatar', 'assets/img/no_avatar.webp');
+        }
+
+        // Абсолютный URL (Steam) и protocol-relative отдаём как есть
+        if (preg_match('#^(https?:)?//#i', $value) === 1) {
+            return $value;
+        }
+
+        try {
+            return (string) asset($value);
+        } catch (Throwable) {
+            return $value;
+        }
+    }
+
     /** «2 ч 14 мин» вместо «8040». */
     public static function duration(mixed $seconds): string
     {

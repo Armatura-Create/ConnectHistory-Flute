@@ -444,9 +444,22 @@ final class HistoryRepository
     {
         [$where, $params] = $this->snapshotConditions($filter);
 
+        // Час и день недели считаются в поясе ПАНЕЛИ, а не в UTC.
+        //
+        // Иначе карта отвечает на вопрос «когда сервер живой по Гринвичу»,
+        // что для Москвы сдвигает всю картину на три часа — а именно по ней
+        // выбирают время ивентов.
+        //
+        // Сдвиг добавляется прямо в SQL, а не через CONVERT_TZ: та требует
+        // загруженных таблиц часовых поясов MySQL, которых на типичном хостинге
+        // нет. Смещение берётся на «сейчас», поэтому переход на летнее время
+        // внутри длинного периода даёт погрешность в час — для карты
+        // типичной активности это приемлемо.
+        $shifted = "(`taken_at` + INTERVAL {$this->offsetMinutes()} MINUTE)";
+
         return $this->fetch(
-            "SELECT WEEKDAY(`taken_at`) AS `weekday`,
-                    HOUR(`taken_at`) AS `hour`,
+            "SELECT WEEKDAY({$shifted}) AS `weekday`,
+                    HOUR({$shifted}) AS `hour`,
                     ROUND(AVG(`players`), 1) AS `avg_players`,
                     MAX(`players`) AS `peak_players`
              FROM `{$this->table('online_snapshots')}`
@@ -455,6 +468,24 @@ final class HistoryRepository
              ORDER BY `weekday`, `hour`",
             $params
         );
+    }
+
+    /**
+     * Смещение пояса панели от UTC в минутах, пригодное для подстановки в SQL.
+     *
+     * Значение вычисляется, а не приходит извне, и всё равно клампится:
+     * оно попадает в текст запроса, где параметризовать INTERVAL нельзя.
+     * Реальные пояса укладываются в +/-14 часов.
+     */
+    private function offsetMinutes(): int
+    {
+        try {
+            $offset = Format::panelTimezone()->getOffset(new \DateTimeImmutable('now', new \DateTimeZone('UTC')));
+        } catch (Throwable) {
+            return 0;
+        }
+
+        return $this->int(intdiv($offset, 60), -840, 840);
     }
 
     /** Новички по дням и сколько из них вернулось хотя бы раз. */

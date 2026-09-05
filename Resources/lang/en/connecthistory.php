@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 return [
     'menu' => [
-        'overview' => 'History: overview',
-        'sessions' => 'History: sessions',
-        'players' => 'History: players',
-        'servers' => 'History: servers',
+        'overview' => 'Overview',
+        'sessions' => 'Sessions',
+        'players' => 'Players',
+        'servers' => 'Servers',
     ],
 
     'overview' => [
@@ -220,7 +220,7 @@ return [
         'players' => 'Players',
         'online_description' => 'Average and peak player count from the online snapshots',
         'joins_description' => 'How many sessions started and how many distinct players joined',
-        'heatmap_description' => 'Average online by hour of day and weekday: shows when to schedule events',
+        'heatmap_description' => 'Rows are weekdays, columns are hours of the day in the panel timezone. Colour is the average online count: the brighter the cell, the more people were on the server at that hour. Built from online snapshots over the selected period, so empty cells mean the server was down or empty then.',
         'maps_description' => 'Maps by total playtime, not by how often they were loaded',
         'newcomers_description' => 'How many people joined for the first time and how many of them came back',
         'reasons_description' => 'Valve disconnect reason code — shows kicks, bans and dropped connections',

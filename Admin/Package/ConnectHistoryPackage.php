@@ -33,13 +33,26 @@ class ConnectHistoryPackage extends AbstractAdminPackage
         return ['admin', self::PERMISSION_VIEW, self::PERMISSION_PII];
     }
 
+    /**
+     * Пункты сознательно БЕЗ ключа 'key'.
+     *
+     * AdminPackageFactory разводит их так: пункт с ключом ждёт, что этот ключ
+     * перечислен в config('admin-menu') панели, и не найдя его — сваливает пункт
+     * в безымянную секцию «остальное» плоским списком. Пункт БЕЗ ключа от модуля
+     * попадает в секцию своего модуля, которая в сайдбаре раскрывается отдельным
+     * уровнем. Второе — то, что нужно: четыре плоских пункта в общем списке
+     * ничего не группируют.
+     *
+     * Заголовок раздела панель берёт из имени модуля. Чтобы вместо этого собрать
+     * свою секцию (например «Аналитика»), пункты нужно вернуть с ключами и
+     * перечислить их в config/admin-menu.php — см. README.
+     */
     public function getMenuItems(): array
     {
         $permission = [self::PERMISSION_VIEW];
 
         return [
             [
-                'key' => 'connecthistory-overview',
                 'title' => __('connecthistory.menu.overview'),
                 'icon' => 'ph.regular.chart-line-up',
                 'url' => url('/admin/connect-history'),
@@ -47,7 +60,6 @@ class ConnectHistoryPackage extends AbstractAdminPackage
                 'permission_mode' => 'any',
             ],
             [
-                'key' => 'connecthistory-sessions',
                 'title' => __('connecthistory.menu.sessions'),
                 'icon' => 'ph.regular.clock-counter-clockwise',
                 'url' => url('/admin/connect-history/sessions'),
@@ -55,7 +67,6 @@ class ConnectHistoryPackage extends AbstractAdminPackage
                 'permission_mode' => 'any',
             ],
             [
-                'key' => 'connecthistory-players',
                 'title' => __('connecthistory.menu.players'),
                 'icon' => 'ph.regular.users-three',
                 'url' => url('/admin/connect-history/players'),
@@ -63,7 +74,6 @@ class ConnectHistoryPackage extends AbstractAdminPackage
                 'permission_mode' => 'any',
             ],
             [
-                'key' => 'connecthistory-servers',
                 'title' => __('connecthistory.menu.servers'),
                 'icon' => 'ph.regular.hard-drives',
                 'url' => url('/admin/connect-history/servers'),

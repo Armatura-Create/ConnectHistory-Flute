@@ -67,6 +67,13 @@ CREATE USER 'ch_reader'@'%' IDENTIFIED BY '...';
 GRANT SELECT ON connect_history.* TO 'ch_reader'@'%';
 ```
 
+### Menu
+
+The sections are grouped in the sidebar under the module name and expand into their
+own level. To place them in a custom section (say "Analytics"), return the menu items
+with keys from `ConnectHistoryPackage::getMenuItems()` and list those keys in the
+panel's `config/admin-menu.php` — the section mechanism is documented by Flute.
+
 ## Permissions
 
 | Permission | Grants |

@@ -20,5 +20,5 @@ parameters:
         - '#unknown class (Flute|Cycle|Illuminate)\\#'
         - '#(Class|Interface|Trait) (Flute|Cycle|Illuminate)\\[A-Za-z0-9_\\]+ not found#'
         - '#Instantiated class (Flute|Cycle|Illuminate)\\[A-Za-z0-9_\\]+ not found#'
-        - '#Function (app|db|dbal|cache|config|logs|steam|url|__|template|breadcrumb|request|router|user|view|collect|e) not found#'
+        - '#Function (app|db|dbal|cache|config|logs|steam|url|asset|__|template|breadcrumb|request|router|user|view|collect|e) not found#'
         - '#has invalid (return )?type (Flute|Cycle|Illuminate)\\#'

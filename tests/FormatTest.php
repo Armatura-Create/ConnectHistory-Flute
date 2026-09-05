@@ -23,6 +23,64 @@ final class FormatTest extends TestCase
         if (!function_exists('__')) {
             eval('function __(string $key, array $replace = []): string { return $key; }');
         }
+
+        // asset() и config() во Flute разворачивают путь относительно домена.
+        // Заглушки повторяют контракт, а не реализацию: важно, что относительный
+        // путь ПРОХОДИТ через asset(), а абсолютный — нет.
+        if (!function_exists('asset')) {
+            eval('function asset($path) { return "/dist/" . ltrim((string) $path, "/"); }');
+        }
+
+        if (!function_exists('config')) {
+            eval('function config($key, $default = null) { return $default; }');
+        }
+    }
+
+    /**
+     * Аватар пользователя сайта хранится ОТНОСИТЕЛЬНЫМ путём и без asset()
+     * даёт битую картинку, а из Steam приходит абсолютный URL и трогать его
+     * нельзя. Из-за этого аватары показывались «не всегда».
+     */
+    public function testRelativeAvatarGoesThroughAsset(): void
+    {
+        self::assertSame('/dist/assets/img/user.webp', Format::avatar('assets/img/user.webp'));
+    }
+
+    #[DataProvider('absoluteAvatars')]
+    public function testAbsoluteAvatarIsLeftAsIs(string $url): void
+    {
+        self::assertSame($url, Format::avatar($url));
+    }
+
+    public static function absoluteAvatars(): array
+    {
+        return [
+            'https' => ['https://avatars.steamstatic.com/abc_full.jpg'],
+            'http' => ['http://example.com/a.png'],
+            'без схемы' => ['//cdn.example.com/a.png'],
+            'регистр схемы' => ['HTTPS://example.com/a.png'],
+        ];
+    }
+
+    #[DataProvider('emptyAvatars')]
+    public function testEmptyAvatarFallsBackToDefault(mixed $value): void
+    {
+        $result = Format::avatar($value);
+
+        // Пустой src браузер трактует как ссылку на саму страницу и грузит её заново
+        self::assertNotSame('', $result);
+        self::assertStringContainsString('no_avatar', $result);
+    }
+
+    public static function emptyAvatars(): array
+    {
+        return [
+            'null' => [null],
+            'пустая строка' => [''],
+            'пробелы' => ['   '],
+            'массив' => [[]],
+            'объект' => [new \stdClass()],
+        ];
     }
 
     #[DataProvider('emptyValues')]

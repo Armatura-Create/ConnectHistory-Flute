@@ -1,6 +1,6 @@
 {
     "name": "ConnectHistory",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "История подключений и статистика игроков из плагина ConnectHistory (CS2)",
     "authors": [
         "Armatura"

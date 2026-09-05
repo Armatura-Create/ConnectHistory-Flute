@@ -10,13 +10,8 @@
 <div class="card ch-profile">
     <div class="card-body">
         <div class="ch-profile__head">
-            @if (!empty($identity['avatar']))
-                <img class="ch-profile__avatar" src="{{ $identity['avatar'] }}" alt="" loading="lazy">
-            @else
-                <span class="ch-profile__avatar ch-profile__avatar--empty">
-                    <x-icon path="ph.regular.user" />
-                </span>
-            @endif
+            <img class="ch-profile__avatar" src="{{ $fmt::avatar($identity['avatar'] ?? null) }}"
+                 alt="" loading="lazy">
 
             <div class="ch-profile__ident">
                 <span class="ch-profile__name">{{ $identity['name'] }}</span>

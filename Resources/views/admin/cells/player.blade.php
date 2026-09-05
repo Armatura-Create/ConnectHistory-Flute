@@ -9,20 +9,16 @@
     $identity = $row['identity'] ?? null;
     $steamId = (string) ($row['steamid64'] ?? '');
     $name = $identity['name'] ?? ($row['nickname'] ?? $row['last_nickname'] ?? $steamId);
-    $avatar = $identity['avatar'] ?? null;
     $href = $link ?? ($identity['url'] ?? '#');
+
+    // Аватар из Steam — абсолютный URL, у пользователя сайта — относительный путь.
+    // Format::avatar разворачивает второй и подставляет дефолтный, если нет ничего.
+    $avatar = \Flute\Modules\ConnectHistory\Services\Format::avatar($identity['avatar'] ?? null);
 @endphp
 
 <div class="d-flex align-items-center gap-2">
-    @if ($avatar)
-        <img src="{{ $avatar }}" alt="" width="28" height="28"
-             style="border-radius: 6px; object-fit: cover; flex-shrink: 0;" loading="lazy">
-    @else
-        <span class="d-flex align-items-center justify-content-center"
-              style="width: 28px; height: 28px; border-radius: 6px; background: var(--transp-05); flex-shrink: 0;">
-            <i class="ph ph-user" style="font-size: 14px; color: var(--text-400);"></i>
-        </span>
-    @endif
+    <img src="{{ $avatar }}" alt="" width="28" height="28"
+         style="border-radius: 6px; object-fit: cover; flex-shrink: 0;" loading="lazy">
 
     <span class="d-flex flex-column" style="min-width: 0;">
         <a href="{{ $href }}" class="text-truncate" style="font-weight: 500;">{{ $name }}</a>
