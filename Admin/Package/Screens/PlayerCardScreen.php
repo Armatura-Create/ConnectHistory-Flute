@@ -186,17 +186,24 @@ class PlayerCardScreen extends Screen
             ])];
         }
 
-        return [
-            LayoutFactory::metrics([
-                __('connecthistory.player.metric_connected') => 'metrics.connected',
-                __('connecthistory.player.metric_played') => 'metrics.played',
-                __('connecthistory.player.metric_spectator') => 'metrics.spectator',
-                __('connecthistory.player.metric_sessions') => 'metrics.sessions',
-            ])->setIcons([
-                __('connecthistory.player.metric_connected') => 'plugs-connected',
-                __('connecthistory.player.metric_played') => 'game-controller',
-                __('connecthistory.player.metric_spectator') => 'eye',
-                __('connecthistory.player.metric_sessions') => 'clock-counter-clockwise',
+        $layout = [];
+
+        // Фильтр появляется только при нескольких серверах: с одним выбирать не из чего,
+        // а данные и так считаются по нему (HistoryRepository::for).
+        if ($filter = $this->serverFilter()) {
+            $layout[] = $filter;
+        }
+
+        return array_merge($layout, [
+            $this->metricsRow([
+                ['label' => __('connecthistory.player.metric_connected'), 'icon' => 'plugs-connected',
+                 'value' => $this->metrics['connected'], 'help' => __('connecthistory.help.connected')],
+                ['label' => __('connecthistory.player.metric_played'), 'icon' => 'game-controller',
+                 'value' => $this->metrics['played'], 'help' => __('connecthistory.help.played')],
+                ['label' => __('connecthistory.player.metric_spectator'), 'icon' => 'eye',
+                 'value' => $this->metrics['spectator'], 'help' => __('connecthistory.help.spectator')],
+                ['label' => __('connecthistory.player.metric_sessions'), 'icon' => 'clock-counter-clockwise',
+                 'value' => $this->metrics['sessions'], 'help' => __('connecthistory.help.player_sessions')],
             ]),
 
             LayoutFactory::chart('activity', __('connecthistory.player.activity_title'))
@@ -253,7 +260,7 @@ class PlayerCardScreen extends Screen
                 ->exportable(true, 'player-' . $this->steamid64)
                 ->perPage(20)
                 ->empty('ph.regular.clock-counter-clockwise', __('connecthistory.sessions.empty')),
-        ];
+        ]);
     }
 
     /** @return array<int, TD> */
@@ -267,12 +274,14 @@ class PlayerCardScreen extends Screen
                 ->render(fn (array $row) => $this->toPanelTime($row['started_at'] ?? null)),
 
             TD::make('duration_seconds', __('connecthistory.sessions.column_duration'))
+                ->popover(__('connecthistory.help.duration'))
                 ->sort()
                 ->alignCenter()
                 ->width('120px')
                 ->render(fn (array $row) => $this->humanDuration($row['duration_seconds'] ?? null)),
 
             TD::make('end_kind', __('connecthistory.sessions.column_state'))
+                ->popover(__('connecthistory.help.state'))
                 ->sort()
                 ->width('150px')
                 ->render(fn (array $row) => view('connecthistory::admin.cells.state', [

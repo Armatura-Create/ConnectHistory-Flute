@@ -72,6 +72,28 @@ trait ResolvesHistory
     }
 
     /**
+     * Фильтр по серверу без периода.
+     *
+     * Для экранов, где период не имеет смысла: карточка игрока показывает всю
+     * его историю, справочник серверов — текущее состояние. А вот «на каком
+     * сервере» осмысленно и там, и там.
+     */
+    protected function serverFilter(): ?Filters
+    {
+        if (count($this->serverOptions) < 2) {
+            return null;
+        }
+
+        return Filters::make()->select(
+            'server',
+            __('connecthistory.filters.server'),
+            ['' => __('connecthistory.filters.all_servers')] + $this->serverOptions,
+            $this->filter?->serverId,
+            allowEmpty: false,
+        );
+    }
+
+    /**
      * Базовые фильтры: сервер и период. Экраны добавляют свои поверх.
      */
     protected function baseFilters(): Filters
@@ -103,6 +125,21 @@ trait ResolvesHistory
             '180d' => __('connecthistory.periods.half_year'),
             '365d' => __('connecthistory.periods.year'),
         ], '7d')->dateRange('date', __('connecthistory.filters.dates'));
+    }
+
+    /**
+     * Ряд метрик со знаком вопроса у подписи.
+     *
+     * Слой Metric платформы подсказок не поддерживает — он экранирует подпись
+     * и не имеет ни popover(), ни слота. Своя вьюха рисует то же самое на классах
+     * панели и добавляет <x-popover>, то есть тот же знак вопроса, что и везде
+     * в админке.
+     *
+     * @param array<int, array{label: string, value: mixed, icon?: string, help?: string}> $items
+     */
+    protected function metricsRow(array $items)
+    {
+        return LayoutFactory::view('connecthistory::admin.metrics', ['items' => $items]);
     }
 
     /**

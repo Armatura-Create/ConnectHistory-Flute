@@ -99,20 +99,25 @@ class OverviewScreen extends Screen
         }
 
         return [
-            LayoutFactory::metrics([
-                __('connecthistory.metrics.players') => 'metrics.players',
-                __('connecthistory.metrics.sessions') => 'metrics.sessions',
-                __('connecthistory.metrics.avg_session') => 'metrics.avg_session_human',
-                __('connecthistory.metrics.peak_online') => 'metrics.peak_online',
-                __('connecthistory.metrics.newcomers') => 'metrics.newcomers',
-                __('connecthistory.metrics.retention') => 'metrics.retention_human',
-            ])->setIcons([
-                __('connecthistory.metrics.players') => 'users-three',
-                __('connecthistory.metrics.sessions') => 'clock-counter-clockwise',
-                __('connecthistory.metrics.avg_session') => 'hourglass-medium',
-                __('connecthistory.metrics.peak_online') => 'trend-up',
-                __('connecthistory.metrics.newcomers') => 'user-plus',
-                __('connecthistory.metrics.retention') => 'percent',
+            $this->metricsRow([
+                ['label' => __('connecthistory.metrics.players'), 'icon' => 'users-three',
+                 'value' => $this->metrics['players'] ?? 0,
+                 'help' => __('connecthistory.help.players')],
+                ['label' => __('connecthistory.metrics.sessions'), 'icon' => 'clock-counter-clockwise',
+                 'value' => $this->metrics['sessions'] ?? 0,
+                 'help' => __('connecthistory.help.sessions')],
+                ['label' => __('connecthistory.metrics.avg_session'), 'icon' => 'hourglass-medium',
+                 'value' => $this->metrics['avg_session_human'] ?? '—',
+                 'help' => __('connecthistory.help.avg_session')],
+                ['label' => __('connecthistory.metrics.peak_online'), 'icon' => 'trend-up',
+                 'value' => $this->metrics['peak_online'] ?? 0,
+                 'help' => __('connecthistory.help.peak_online')],
+                ['label' => __('connecthistory.metrics.newcomers'), 'icon' => 'user-plus',
+                 'value' => $this->metrics['newcomers'] ?? 0,
+                 'help' => __('connecthistory.help.newcomers')],
+                ['label' => __('connecthistory.metrics.retention'), 'icon' => 'percent',
+                 'value' => $this->metrics['retention_human'] ?? '0%',
+                 'help' => __('connecthistory.help.retention')],
             ]),
 
             $this->baseFilters()->checkbox('skip_short', __('connecthistory.filters.skip_short')),
@@ -279,6 +284,9 @@ class OverviewScreen extends Screen
             ->type($type)
             ->labels($this->labels)
             ->height($height)
+            // Описание объясняет, ЧТО на графике; знак вопроса — как его читать
+            // и откуда берутся данные.
+            ->popover(__('connecthistory.help.chart_' . $this->activeTab))
             ->description(__('connecthistory.charts.' . $this->activeTab . '_description'));
     }
 

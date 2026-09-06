@@ -66,16 +66,19 @@ class PlayersScreen extends Screen
         }
 
         return [
-            LayoutFactory::metrics([
-                __('connecthistory.metrics.players') => 'metrics.players',
-                __('connecthistory.metrics.newcomers') => 'metrics.newcomers',
-                __('connecthistory.metrics.returned') => 'metrics.returned',
-                __('connecthistory.metrics.retention') => 'metrics.retention_human',
-            ])->setIcons([
-                __('connecthistory.metrics.players') => 'users-three',
-                __('connecthistory.metrics.newcomers') => 'user-plus',
-                __('connecthistory.metrics.returned') => 'arrow-u-up-left',
-                __('connecthistory.metrics.retention') => 'percent',
+            $this->metricsRow([
+                ['label' => __('connecthistory.metrics.players'), 'icon' => 'users-three',
+                 'value' => $this->metrics['players'] ?? 0,
+                 'help' => __('connecthistory.help.players')],
+                ['label' => __('connecthistory.metrics.newcomers'), 'icon' => 'user-plus',
+                 'value' => $this->metrics['newcomers'] ?? 0,
+                 'help' => __('connecthistory.help.newcomers')],
+                ['label' => __('connecthistory.metrics.returned'), 'icon' => 'arrow-u-up-left',
+                 'value' => $this->metrics['returned'] ?? 0,
+                 'help' => __('connecthistory.help.returned')],
+                ['label' => __('connecthistory.metrics.retention'), 'icon' => 'percent',
+                 'value' => $this->metrics['retention_human'] ?? '0%',
+                 'help' => __('connecthistory.help.retention')],
             ]),
 
             $this->filters(),
@@ -90,6 +93,7 @@ class PlayersScreen extends Screen
                     ])->render()),
 
                 TD::make('total_seconds', __('connecthistory.players.column_playtime'))
+                    ->popover(__('connecthistory.help.player_playtime'))
                     ->sort()
                     ->defaultSort(true, 'desc')
                     ->alignCenter()
@@ -97,6 +101,7 @@ class PlayersScreen extends Screen
                     ->render(fn (array $row) => $this->humanDuration($row['total_seconds'] ?? 0)),
 
                 TD::make('sessions_count', __('connecthistory.players.column_sessions'))
+                    ->popover(__('connecthistory.help.player_sessions'))
                     ->sort()
                     ->alignCenter()
                     ->width('120px'),

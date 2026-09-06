@@ -852,6 +852,11 @@ final class HistoryRepository
      */
     public function servers(): array
     {
+        // Выбранный сервер сужает и справочник: иначе фильтр на экране был бы
+        // подписью без действия.
+        $scope = $this->serverId > 0 ? 'WHERE srv.`id` = ?' : '';
+        $params = $this->serverId > 0 ? [$this->serverId] : [];
+
         return $this->fetch(
             "SELECT srv.`id`, srv.`address`, srv.`hostname`, srv.`first_seen`, srv.`last_seen`,
                     (SELECT COUNT(*) FROM `{$this->table('sessions')}` s
@@ -863,8 +868,9 @@ final class HistoryRepository
                         AND s.`end_kind` = " . SessionFilter::END_KIND_STALE . "
                         AND s.`started_at` >= UTC_TIMESTAMP() - INTERVAL 30 DAY) AS `crashes_30d`
              FROM `{$this->table('servers')}` srv
+             {$scope}
              ORDER BY srv.`id`",
-            []
+            $params
         );
     }
 

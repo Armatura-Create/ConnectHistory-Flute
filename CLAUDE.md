@@ -1,23 +1,25 @@
 # CLAUDE.md
 
-Модуль Flute CMS: раздел «История и статистика игроков» поверх базы, которую
-наполняет плагин [ConnectHistory-CS2](https://github.com/Armatura-Create/ConnectHistoryCS2).
+Flute CMS module: the "Player history and statistics" admin section, built on top of
+the database filled by the [ConnectHistory](https://github.com/Armatura-Create/ConnectHistoryCS2)
+game-server plugin.
 
-Модуль **только читает**. Он не создаёт таблиц, не пишет в историю, не заводит
-сущностей Cycle и не требует миграций: база чужая, её схемой владеет плагин.
+The module is **read-only**. It creates no tables, writes nothing to the history,
+defines no Cycle entities and needs no migrations: the database belongs to the plugin,
+and the plugin owns its schema.
 
-## Команды
+## Commands
 
 ```bash
 composer install
-composer test        # PHPUnit без Flute
-composer lint        # Pint (PSR-12), требует PHP 8.3+
-composer fix         # Pint с автоправкой
-composer stan        # PHPStan level 5 по сервисам, без Flute
-composer stan:flute  # PHPStan с настоящей CMS (нужен клон в .flute/)
+composer test        # PHPUnit without Flute
+composer lint        # Pint (PSR-12), needs PHP 8.3+
+composer fix         # Pint with autofix
+composer stan        # PHPStan level 5 over the services, without Flute
+composer stan:flute  # PHPStan against the real CMS (needs a clone in .flute/)
 ```
 
-Локально поднять CMS для полного анализа:
+To get the CMS locally for the full analysis:
 
 ```bash
 git clone --depth 1 --branch v1.0.6 https://github.com/Flute-CMS/cms.git .flute
@@ -26,194 +28,188 @@ composer stan:flute
 php tests/compat/assert-flute-classes.php --verbose
 ```
 
-## Главное архитектурное решение
+## The decision everything else follows from
 
-**Агрегат считается в SQL, а не в PHP.**
+**Aggregates are computed in SQL, never in PHP.**
 
-Предшественник (`ConnectionStats`) выбирал все сессии за период и группировал их
-циклом в PHP. На периоде в 180+ дней это клало админку. Отсюда правило: методы
-`HistoryRepository`, отдающие аналитику, возвращают результат `GROUP BY`, а не строки.
-Табличные экраны отдают `SelectQuery` прямо в `LayoutFactory::table()` — пагинацию,
-сортировку и `LIMIT` делает платформа на стороне базы.
+The predecessor module (`ConnectionStats`) selected every session in the period and
+grouped them with a `foreach`. On a 180-day window that took the admin panel down.
+Hence the rule: methods of `HistoryRepository` that serve analytics return the result
+of a `GROUP BY`, not rows. Table screens hand a `SelectQuery` straight to
+`LayoutFactory::table()`, and the platform does pagination, sorting and `LIMIT`
+on the database side.
 
-Следствие: стоимость страницы не зависит от объёма накопленной истории.
+The consequence: page cost does not depend on how much history has accumulated.
 
-## Архитектура
-
-```
-Providers/ConnectHistoryProvider.php   регистрация: views, scss, драйвер, admin-пакет
-Admin/Drivers/                         тип подключения «ConnectHistory» в разделе «Серверы»
-Admin/Package/                         маршруты, права, меню
-Admin/Package/Screens/                 пять экранов + общий трейт ResolvesHistory
-Services/HistoryRepository.php         ВЕСЬ SQL модуля
-Services/SessionFilter.php             GET -> нормализованный фильтр (чистый, без Flute)
-Services/ServerBinding.php             разбор additional подключения (чистый, без Flute)
-Services/PlayerIdentityService.php     steamid64 -> имя и аватар
-Services/Format.php                    форматирование (время, длительность, числа),
-                                       общее для экранов, вьюх и виджетов
-Widgets/StatWidget.php                 одно число на страницу сайта, настраиваемое
-```
-
-### Путь данных
+## Architecture
 
 ```
-GET-параметры
-  -> SessionFilter::fromArray()          нормализация и границы окна
-  -> HistoryRepository::for($serverId)   привязка «сервер панели -> сервер плагина»
-  -> SelectQuery | массив агрегатов
-  -> LayoutFactory::table/chart/metrics
-  -> dataCallback -> PlayerIdentityService  личности для ОДНОЙ страницы, одной пачкой
+Providers/ConnectHistoryProvider.php   registration: views, scss, mod driver, admin package
+Admin/Drivers/                         the "ConnectHistory" connection type in Servers
+Admin/Package/                         routes, permissions, menu, admin stylesheet
+Admin/Package/Screens/                 five screens plus the shared ResolvesHistory trait
+Services/HistoryRepository.php         EVERY SQL statement in the module
+Services/SessionFilter.php             GET -> normalised filter (pure, no Flute)
+Services/ServerBinding.php             parses a connection's additional (pure, no Flute)
+Services/PlayerIdentityService.php     steamid64 -> display name and avatar
+Services/Format.php                    time, duration, numbers, avatars — shared by
+                                       screens, views and the widget
+Widgets/StatWidget.php                 one configurable number for any site page
 ```
 
-## Инварианты, которые легко сломать
+### Data path
 
-- **`boot()` только регистрирует, читает `Screen::mount()`.** Провайдер выполняется
-  на каждом запросе к панели, включая те, где раздел не открывают. Ни одного запроса
-  к базе в `boot()`. Плюс `mount()` вызывается уже после проверки `Screen::$permission`.
-- **Права определяют список `SELECT`, а не видимость в вёрстке.** Без
-  `admin.connecthistory.pii` колонки `player_ip`, `city`, `ip_subnet`, `ip_hash`
-  не попадают в запрос, а поиск мультиаккаунтов не выполняется вовсе. Прятать
-  персональные данные в Blade нельзя: это защита, которую видно только в разметке.
-- **Ни одного сырого `SELECT` ради подсчёта в PHP.** См. «Главное архитектурное решение».
-  Единственное исключение — сводный режим экрана «Сессии»: Cycle `SelectQuery::count()`
-  игнорирует `GROUP BY`, поэтому пагинатор платформы посчитал бы сессии вместо групп.
-  Там агрегат выполняется вручную с жёстким потолком `connecthistory.max_groups`,
-  и в PHP приезжают группы, а не сессии.
-- **Окно выборки ограничено всегда.** `SessionFilter` клампит период
-  (`max_period_days`), а явная дата не может расширить окно за его границу.
-- **Время в базе — UTC.** Сравнение с «сейчас» только через `UTC_TIMESTAMP()`:
-  `NOW()` отдаёт время в поясе сессии MySQL. Вывод — через `ResolvesHistory::toPanelTime()`,
-  это единственное место, где UTC покидает данные.
-- **`steamid64` — строка на всём пути**, включая параметр маршрута. 64-битное число
-  теряет точность в PHP int на 32-битной сборке.
-- **Личность игрока имеет гарантированное дно.** `PlayerIdentityService::merge()`
-  обязан вернуть заполненную запись для КАЖДОГО запрошенного SteamID, чем бы ни ответили
-  Flute и Steam. Приватный профиль — штатная ветка, а не исключение: именно на нём
-  падал предыдущий модуль.
-- **Steam опрашивается один раз на страницу.** Резолв личностей живёт в
-  `Table::dataCallback`, то есть выполняется ПОСЛЕ пагинации. Вызов внутри рендера
-  колонки означал бы запрос на строку.
-- **Префикс таблиц проходит белый список** (`ServerBinding::sanitizePrefix`): он попадает
-  в SQL как часть идентификатора, параметризовать его нельзя. Якорь `\z`, а не `$`:
-  в PCRE `$` совпадает перед завершающим переводом строки.
-- **Числовые константы в тексте SQL проходят `HistoryRepository::int()`.** `LIMIT`
-  и `INTERVAL` параметризовать MySQL не даёт, поэтому им заданы жёсткие границы.
-  Всё остальное — только параметрами.
-- **«Ничего не выбрано» не означает «показать всё».** Одна база плагина обслуживает
-  несколько игровых серверов (колонка `server_id`), и панель знает только про те,
-  что привязаны. Поэтому при ОДНОЙ привязке статистика считается по её серверу,
-  а выбор «Все серверы» появляется только когда привязок несколько
-  (`HistoryRepository::for`). Иначе в раздел затекали бы данные соседних серверов,
-  которые панель всё равно не может показать отдельно.
-- **`url()` возвращает `UrlSupport`, а не строку.** В Blade и в массивах он
-  приводится сам, но в аргумент с типом `string` (`Button::href`,
-  `BreadcrumbService::add`) его нужно кастовать явно, иначе TypeError в рантайме.
-- **Виджет живёт на публичной странице и обязан быть кеширован дважды.** Он
-  считается на каждый заход посетителя: `getCacheTime()` кеширует готовый HTML,
-  `cache()->callback()` — сам запрос. Ключ включает показатель, сервер и период,
-  поэтому одинаково настроенные виджеты делят результат.
-- **Времена на карточке считаются ИЗ СЕССИЙ, а не из `ch_players.total_seconds`.**
-  Последний — это «наиграно» в понимании плагина: при
-  `Collect.CountSpectatorTime = false` время вне игры из него уже вычтено,
-  а панель об этой настройке не знает и честно подписать число не может.
-  Из сессий все три величины выводятся однозначно и сходятся:
-  на сервере = в игре + вне игры.
-- **Колонки, появившиеся в новых версиях схемы плагина, запрашиваются условно.**
-  `spectator_seconds` есть только с версии 3, а запрос несуществующей колонки
-  роняет ВСЮ выборку — обновление модуля без обновления плагина стоило бы
-  пользователю целого раздела. Наличие проверяется через `information_schema`
-  и кешируется на час (схема меняется перезапуском игрового сервера).
-- **Стили админ-экранов подключает ПАКЕТ, а не провайдер.**
-  `ModuleServiceProvider::loadScss()` кладёт файл в группу ассетов «main» (тема
-  сайта), и в панели он не загружается вовсе; для панели нужен
-  `AbstractAdminPackage::registerScss()` с группой «admin». Отсюда разделение:
-  `connecthistory.scss` — виджет на сайте, `admin.scss` — экраны панели.
-- **Пункты меню возвращаются БЕЗ `key`.** `AdminPackageFactory` разводит их так:
-  пункт с ключом ждёт этот ключ в `config('admin-menu')` панели и, не найдя,
-  сваливается в безымянную секцию «остальное» плоским списком; пункт без ключа
-  от модуля попадает в свою секцию, которая в сайдбаре раскрывается уровнем.
-- **Час и день недели считаются в поясе панели, а не в UTC.** В базе всё в UTC,
-  и `HOUR(taken_at)` даёт гринвичский час: для Москвы карта активности уезжает
-  на три часа, а по ней выбирают время ивентов. Сдвиг добавляется в SQL
-  (`+ INTERVAL n MINUTE`), а не через `CONVERT_TZ` — та требует таблиц часовых
-  поясов MySQL, которых на типичном хостинге нет.
-- **Аватар выводится только через `Format::avatar()`.** Steam отдаёт абсолютный
-  URL, а у пользователя сайта в базе относительный путь, который обязан пройти
-  через `asset()`. Сырой вывод ломает картинку ровно у половины игроков.
-- **На одном экране может быть только ОДНА таблица платформы.** `Layouts\Table`
-  берёт номер страницы и сортировку из общих GET-параметров `page` и `sort`:
-  вторая таблица начинает листаться и сортироваться вместе с первой. Короткие
-  справочные списки рисуются вьюхами (`LayoutFactory::view`) — им пагинация
-  не нужна, они ограничены `LIMIT` в SQL.
-- **В ключе кеша нельзя использовать `{}()/\@:`** — эти символы зарезервированы
-  PSR-6, и Symfony Cache на них БРОСАЕТ исключение, а не игнорирует ключ. Цена
-  ошибки несимметрична: там, где исключение перехвачено, кеша просто нет и каждый
-  заход идёт в базу; где не перехвачено — виджет показывает «данные недоступны».
-  Разделитель — точка. Проверяется `CacheKeyTest`.
-- **Неработающий кеш обязан попадать в лог.** Фолбэк «посчитать напрямую» держит
-  раздел живым, но молчащий фолбэк прячет то, ради чего кеш и заводился.
-- **`Widget::render()` не имеет права ни бросить исключение, ни вернуть null.**
-  `WidgetController::saveSettings()` вызывает его СРАЗУ после сохранения и кладёт
-  результат в JSON-ответ: исключение там перехватывается и вместо JSON возвращается
-  HTML формы — для фронтенда это выглядит как «сохранение не работает», а null даёт
-  пустой виджет без объяснения. Любая проблема показывается карточкой с текстом.
-- **Категория виджета — только из списка ядра** (general, users, user, content,
-  media, other, payments, admin, stats, system, social): она переводится по ключу
-  `page.categories.<категория>`, и выдуманная выводится как сам ключ.
-- **Селект-фильтр обязан называть себя первым пунктом.** Шаблон `Filters` в ядре
-  выводит `label` для buttonGroup, input, dateRange и checkbox, но НЕ для select —
-  без описательного пункта в ряд встают одинаковые «Выберите опцию». Поэтому
-  первым идёт `'' => 'Все карты'` и `allowEmpty: false`.
-- **Подпись графика = имя агрегата.** Между запросом и графиком не должно быть
-  вычислений, где смысл разойдётся с подписью: предшественник рисовал накопительную
-  сумму под заголовком «История подключений».
+```
+GET parameters
+  -> SessionFilter::fromArray()          normalisation and window bounds
+  -> HistoryRepository::for($serverId)   "panel server -> plugin server" binding
+  -> SelectQuery | array of aggregates
+  -> LayoutFactory::table/chart, metricsRow()
+  -> dataCallback -> PlayerIdentityService   identities for ONE page, in one batch
+```
 
-## Конфигурация
+## Invariants that are easy to break
 
-`Resources/config/connecthistory.php` — TTL кешей, потолок периода, потолок числа групп,
-размер страницы, порог «сервер молчал».
+- **`boot()` only registers; `Screen::mount()` reads.** The provider runs on every
+  request to the panel, including ones that never open this section, so it must not
+  touch the database. `mount()` also runs after `Screen::$permission` has been checked.
+- **Permissions decide the `SELECT` list, not visibility in the markup.** Without
+  `admin.connecthistory.pii` the columns `player_ip`, `city`, `ip_subnet`, `ip_hash`
+  never enter the query and the alt-account lookup is not executed at all. Hiding
+  personal data in Blade is protection you can only see in the markup.
+- **Never select raw rows in order to count them in PHP.** See the decision above.
+  The one exception is the grouped mode of the Sessions screen: Cycle's
+  `SelectQuery::count()` ignores `GROUP BY`, so the platform paginator would count
+  sessions instead of groups. There the aggregate runs with a hard
+  `connecthistory.max_groups` cap, and what reaches PHP is groups, not sessions.
+- **The selection window is always bounded.** `SessionFilter` clamps the period
+  (`max_period_days`), and an explicit date cannot widen it past that bound.
+- **Times in the database are UTC.** Compare against "now" only through
+  `UTC_TIMESTAMP()`: `NOW()` returns the MySQL session's timezone. Output goes through
+  `Format::time()`, the single place where UTC leaves the data.
+- **Hour and weekday are computed in the PANEL timezone, not UTC.** `HOUR(taken_at)`
+  on UTC values yields Greenwich hours: for Moscow the activity map shifts by three
+  hours, and that map is what people schedule events by. The offset is added in SQL
+  (`+ INTERVAL n MINUTE`) rather than via `CONVERT_TZ`, which needs the MySQL timezone
+  tables that a typical host does not have.
+- **`steamid64` is a string the whole way**, route parameter included. A 64-bit number
+  loses precision in a PHP int on a 32-bit build.
+- **Player identity has a guaranteed floor.** `PlayerIdentityService::merge()` must
+  return a filled record for EVERY requested SteamID, whatever Flute and Steam answer.
+  A private profile is an ordinary branch, not an exception — that is exactly what
+  brought the previous module down.
+- **Steam is queried once per page.** Identity resolution lives in
+  `Table::dataCallback`, which runs AFTER pagination. Calling it inside a column
+  renderer would mean one request per row.
+- **Avatars are rendered only through `Format::avatar()`.** Steam returns an absolute
+  URL; a site user's avatar is a relative path in the database that must go through
+  `asset()`. Printing the raw value breaks the image for exactly half the players.
+- **Columns added by newer plugin schema versions are queried conditionally.**
+  `spectator_seconds` exists only from version 3, and asking for a missing column
+  kills the WHOLE query — updating the module without updating the plugin would cost
+  the user an entire section. Presence is checked through `information_schema` and
+  cached for an hour (the schema changes when the game server restarts).
+- **Card times are computed FROM SESSIONS, not from `ch_players.total_seconds`.**
+  The latter is "playtime" as the plugin defines it: with
+  `Collect.CountSpectatorTime = false` spectator time is already subtracted, and the
+  panel cannot know about that setting, so it cannot label the number honestly. From
+  sessions all three values follow unambiguously and always add up:
+  connected = in game + out of game.
+- **Only ONE platform table per screen.** `Layouts\Table` takes the page number and
+  the sort column from the shared `page` and `sort` GET parameters, so a second table
+  starts paging and sorting along with the first. Short reference lists are rendered
+  as views (`LayoutFactory::view`); they need no pagination and are already capped by
+  `LIMIT` in SQL.
+- **Cache keys must not contain `{}()/\@:`** — those characters are reserved by PSR-6,
+  and Symfony Cache THROWS on them rather than ignoring the key. The cost is
+  asymmetric: where the exception is caught there simply is no cache and every visit
+  hits the database; where it is not, the widget shows "data unavailable". The
+  separator is a dot. Covered by `CacheKeyTest`.
+- **A broken cache must reach the log.** Falling back to "compute directly" keeps the
+  section alive, but a silent fallback hides the very thing the cache was added for.
+- **`Widget::render()` may neither throw nor return null.**
+  `WidgetController::saveSettings()` calls it immediately after saving and puts the
+  result in the JSON response: an exception there is caught and the form HTML is
+  returned instead of JSON, which the front end reads as "saving does not work", while
+  null yields an empty widget with no explanation. Every problem is shown as a card
+  with text.
+- **A widget's category must come from the core list** (general, users, user, content,
+  media, other, payments, admin, stats, system, social): it is translated through the
+  `page.categories.<category>` key, and an invented one renders as the key itself.
+- **Menu items are returned WITHOUT a `key`.** `AdminPackageFactory` routes them by
+  that: an item with a key expects to find that key in the panel's
+  `config('admin-menu')` and, failing to, drops into a nameless "leftovers" section as
+  a flat list; an item without a key from a module lands in its own module section,
+  which the sidebar expands as a separate level.
+- **A select filter must name itself in its first option.** The core `Filters` template
+  renders `label` for buttonGroup, input, dateRange and checkbox, but NOT for select —
+  without a descriptive option a row of identical "Choose an option" dropdowns appears.
+  Hence `'' => 'All maps'` with `allowEmpty: false`.
+- **"Nothing selected" does not mean "show everything".** One plugin database serves
+  several game servers (the `server_id` column) and the panel only knows the ones that
+  are bound to it. So with a SINGLE binding the statistics are scoped to that server,
+  and the explicit "All servers" choice appears only when there are several
+  (`HistoryRepository::for`). Otherwise data from neighbouring servers writing to the
+  same database would leak in — servers the panel cannot show separately anyway.
+- **`url()` returns `UrlSupport`, not a string.** Blade and arrays coerce it, but an
+  argument typed `string` (`Button::href`, `BreadcrumbService::add`) needs an explicit
+  cast or it is a TypeError at runtime.
+- **Admin stylesheets are registered by the PACKAGE, not the provider.**
+  `ModuleServiceProvider::loadScss()` puts the file in the "main" asset group — the
+  site theme — where the panel never loads it; the panel needs
+  `AbstractAdminPackage::registerScss()` with the "admin" group. Hence the split:
+  `connecthistory.scss` for the site widget, `admin.scss` for the panel screens.
+- **A chart's caption equals the name of its aggregate.** There must be no computation
+  between the query and the chart where the meaning could drift from the label: the
+  predecessor drew a cumulative sum under the heading "Connection history".
 
-Подключение к базе настраивается не здесь, а в разделе «Серверы» панели: подключение
-с модом `ConnectHistory`, в `additional` — `server_id` плагина и префикс таблиц.
-Читается ровно одним методом `ServerBinding::readAdditional()`, чей результат имеет
-одинаковую форму на любом входе, включая битый JSON.
+## Configuration
 
-## Переводы
+`Resources/config/connecthistory.php` — cache TTLs, the period cap, the group cap,
+page size, the "server went quiet" threshold.
 
-`Resources/lang/{ru,en}/connecthistory.php`. Ключ, которого нет в файле, Flute выводит
-как есть — пользователь видит `connecthistory.sessions.column_map` вместо подписи, и это
-не падает. Поэтому `TranslationKeysTest` сверяет три множества: ключи в коде, в `ru`, в `en`,
-и заодно совпадение плейсхолдеров. Ключи, собираемые конкатенацией, перечислены
-в `DYNAMIC_KEYS` этого же теста — добавил вкладку, добавь и туда.
+The database connection is configured in the panel's Servers section rather than here:
+a connection with the `ConnectHistory` mod, whose `additional` holds the plugin's
+`server_id` and the table prefix. It is read by exactly one method,
+`ServerBinding::readAdditional()`, whose result has the same shape for any input,
+malformed JSON included.
 
-## Тесты и CI
+## Translations
 
-Тесты гоняются **без Flute**: в них только логика, не зависящая от CMS. Всё, что
-наследует классы Flute (экраны, виджет, провайдер, инсталлятор), проверяется джобой
-`flute-compat`: она клонирует CMS целевой версии, сверяет существование каждого символа
-`Flute\*` и прогоняет PHPStan с настоящими классами.
+`Resources/lang/{ru,en}/connecthistory.php`. A key that is missing from the file is
+printed by Flute as-is — the user sees `connecthistory.sessions.column_map` instead of
+a caption, and nothing crashes. So `TranslationKeysTest` compares three sets: the keys
+used in the code, in `ru` and in `en`, and checks that placeholders match. Keys built
+by concatenation are listed in that test's `DYNAMIC_KEYS` — add a tab, add it there.
 
-Почему именно так: предшественник умер от переезда класса между версиями Flute
-и узнал об этом в проде. Разбор всех восьми его отказов — [docs/AUTOPSY.md](docs/AUTOPSY.md);
-он же объясняет, почему архитектура именно такая.
+## Tests and CI
 
-Flute ставится клоном, а не `composer require`: `flute-cms/cms` — пакет типа `project`,
-как библиотека он не устанавливается, а его зависимости конфликтуют с инструментами
-разработки модуля.
+Tests run **without Flute**: they contain only logic that does not depend on the CMS.
+Everything that extends a Flute class (screens, widget, provider, installer) is checked
+by the separate `flute-compat` job: it clones the target CMS version, asserts that every
+`Flute\*` symbol the module references exists, and runs PHPStan against the real classes.
 
-`stubs/Makeable.stub` обязателен и не является косметикой. В самой Flute
-`Makeable::make()` объявлен как `: self`, что в трейте резолвится в `Field`, —
-поэтому `Button::make()` и `Tab::make()` статически имеют тип `Field`, и **вся
-цепочка после них не проверяется вообще**: ни существование методов, ни типы
-аргументов. Пока вместо стаба стояла заглушка `ignoreErrors`, сквозь неё уехал
-в прод `Button::href(UrlSupport)` вместо `string`. Стаб объявляет тот же метод
-как `static` и возвращает проверку.
+Why: the predecessor died from a class moving between Flute versions and learned about
+it in production. The full account of its eight failures is in [docs/AUTOPSY.md](docs/AUTOPSY.md);
+it also explains why the architecture is what it is.
 
-## Версии
+Flute is installed by cloning rather than `composer require`: `flute-cms/cms` is a
+`project`-type package that does not install as a library, and its dependencies clash
+with the module's development tools.
 
-Версия живёт в `module.json` и обязана совпадать с тегом релиза — это проверяет
-`release.yml` перед сборкой архива.
+`stubs/Makeable.stub` is required and is not cosmetic. In Flute itself
+`Makeable::make()` is declared `: self`, which inside a trait resolves to `Field` — so
+`Button::make()` and `Tab::make()` are statically typed as `Field` and **the entire
+chain after them goes unchecked**: neither method existence nor argument types. While
+an `ignoreErrors` entry stood in place of the stub, `Button::href(UrlSupport)` instead
+of `string` reached production through it. The stub declares the same method as
+`static` and restores the checking.
 
-Диапазон поддерживаемых версий CMS указан в двух местах: `module.json`
-(`dependencies.flute`) и матрица `flute` в `ci.yml`. Нижняя граница обязана быть
-в матрице — иначе обещание «работает с 1.0.6» ничем не подкреплено.
+## Versions
+
+The version lives in `module.json` and must match the release tag — `release.yml`
+verifies that before building the archive.
+
+The supported CMS range is stated in two places: `module.json` (`dependencies.flute`)
+and the `flute` matrix in `ci.yml`. The lower bound must be in the matrix, otherwise
+the promise "works with 1.0.6" is backed by nothing.

@@ -81,16 +81,19 @@ class SessionsScreen extends Screen
         }
 
         return [
-            LayoutFactory::metrics([
-                __('connecthistory.metrics.sessions') => 'metrics.sessions',
-                __('connecthistory.metrics.players') => 'metrics.players',
-                __('connecthistory.metrics.avg_session') => 'metrics.avg_session_human',
-                __('connecthistory.metrics.crashed') => 'metrics.crashed',
-            ])->setIcons([
-                __('connecthistory.metrics.sessions') => 'clock-counter-clockwise',
-                __('connecthistory.metrics.players') => 'users-three',
-                __('connecthistory.metrics.avg_session') => 'hourglass-medium',
-                __('connecthistory.metrics.crashed') => 'warning-octagon',
+            $this->metricsRow([
+                ['label' => __('connecthistory.metrics.sessions'), 'icon' => 'clock-counter-clockwise',
+                 'value' => $this->metrics['sessions'] ?? 0,
+                 'help' => __('connecthistory.help.sessions')],
+                ['label' => __('connecthistory.metrics.players'), 'icon' => 'users-three',
+                 'value' => $this->metrics['players'] ?? 0,
+                 'help' => __('connecthistory.help.players')],
+                ['label' => __('connecthistory.metrics.avg_session'), 'icon' => 'hourglass-medium',
+                 'value' => $this->metrics['avg_session_human'] ?? '—',
+                 'help' => __('connecthistory.help.avg_session')],
+                ['label' => __('connecthistory.metrics.crashed'), 'icon' => 'warning-octagon',
+                 'value' => $this->metrics['crashed'] ?? 0,
+                 'help' => __('connecthistory.help.crashed')],
             ]),
 
             $this->filters(),
@@ -195,6 +198,7 @@ class SessionsScreen extends Screen
                 ->render(fn (array $row) => $this->toPanelTime($row['started_at'] ?? null)),
 
             TD::make('duration_seconds', __('connecthistory.sessions.column_duration'))
+                ->popover(__('connecthistory.help.duration'))
                 ->sort()
                 ->alignCenter()
                 ->width('120px')
@@ -211,6 +215,7 @@ class SessionsScreen extends Screen
                     : $this->humanDuration($row['spectator_seconds'])),
 
             TD::make('end_kind', __('connecthistory.sessions.column_state'))
+                ->popover(__('connecthistory.help.state'))
                 ->sort()
                 ->width('150px')
                 ->render(fn (array $row) => view('connecthistory::admin.cells.state', [
@@ -229,6 +234,7 @@ class SessionsScreen extends Screen
                 ->render(static fn (array $row) => (string) ($row['country_name'] ?? $row['country_iso'] ?? '—')),
 
             TD::make('kills', __('connecthistory.sessions.column_kd'))
+                ->popover(__('connecthistory.help.kd'))
                 ->alignCenter()
                 ->width('110px')
                 ->disableSearch()
@@ -242,6 +248,7 @@ class SessionsScreen extends Screen
                 }),
 
             TD::make('ping_avg', __('connecthistory.sessions.column_ping'))
+                ->popover(__('connecthistory.help.ping'))
                 ->sort()
                 ->alignCenter()
                 ->width('100px')
@@ -251,6 +258,7 @@ class SessionsScreen extends Screen
                     : (string) (int) $row['ping_avg']),
 
             TD::make('players_online', __('connecthistory.sessions.column_online_then'))
+                ->popover(__('connecthistory.help.online_then'))
                 ->sort()
                 ->alignCenter()
                 ->width('120px')
@@ -309,11 +317,13 @@ class SessionsScreen extends Screen
                 ->width('120px'),
 
             TD::make('players', __('connecthistory.grouped.players'))
+                ->popover(__('connecthistory.help.group_players'))
                 ->sort()
                 ->alignCenter()
                 ->width('120px'),
 
             TD::make('total_seconds', __('connecthistory.grouped.total_time'))
+                ->popover(__('connecthistory.help.group_total'))
                 ->sort()
                 ->alignCenter()
                 ->width('140px')

@@ -87,17 +87,25 @@ class ServersScreen extends Screen
             return [$this->notConfiguredLayout()];
         }
 
-        return [
-            LayoutFactory::metrics([
-                __('connecthistory.servers.metric_servers') => 'metrics.servers',
-                __('connecthistory.servers.metric_online') => 'metrics.online',
-                __('connecthistory.servers.metric_crashes') => 'metrics.crashes',
-                __('connecthistory.servers.metric_broken_address') => 'metrics.broken_address',
-            ])->setIcons([
-                __('connecthistory.servers.metric_servers') => 'hard-drives',
-                __('connecthistory.servers.metric_online') => 'users-three',
-                __('connecthistory.servers.metric_crashes') => 'warning-octagon',
-                __('connecthistory.servers.metric_broken_address') => 'plugs',
+        $layout = [];
+
+        if ($filter = $this->serverFilter()) {
+            $layout[] = $filter;
+        }
+
+        return array_merge($layout, [
+            $this->metricsRow([
+                ['label' => __('connecthistory.servers.metric_servers'), 'icon' => 'hard-drives',
+                 'value' => $this->metrics['servers'] ?? 0],
+                ['label' => __('connecthistory.servers.metric_online'), 'icon' => 'users-three',
+                 'value' => $this->metrics['online'] ?? 0,
+                 'help' => __('connecthistory.help.online_now')],
+                ['label' => __('connecthistory.servers.metric_crashes'), 'icon' => 'warning-octagon',
+                 'value' => $this->metrics['crashes'] ?? 0,
+                 'help' => __('connecthistory.help.crashed')],
+                ['label' => __('connecthistory.servers.metric_broken_address'), 'icon' => 'plugs',
+                 'value' => $this->metrics['broken_address'] ?? 0,
+                 'help' => __('connecthistory.help.broken_address')],
             ]),
 
             LayoutFactory::table('servers', [
@@ -111,17 +119,20 @@ class ServersScreen extends Screen
                     ])->render()),
 
                 TD::make('online_now', __('connecthistory.servers.column_online'))
+                    ->popover(__('connecthistory.help.online_now'))
                     ->alignCenter()
                     ->width('110px')
                     ->render(static fn (array $row) => (string) (int) $row['online_now']),
 
                 TD::make('last_snapshot', __('connecthistory.servers.column_heartbeat'))
+                    ->popover(__('connecthistory.help.heartbeat'))
                     ->width('190px')
                     ->render(fn (array $row) => view('connecthistory::admin.cells.heartbeat', [
                         'row' => $row,
                     ])->render()),
 
                 TD::make('crashes_30d', __('connecthistory.servers.column_crashes'))
+                    ->popover(__('connecthistory.help.crashed'))
                     ->alignCenter()
                     ->width('130px')
                     ->render(static fn (array $row) => (int) $row['crashes_30d'] > 0
@@ -138,7 +149,7 @@ class ServersScreen extends Screen
                     __('connecthistory.servers.empty'),
                     __('connecthistory.servers.empty_sub')
                 ),
-        ];
+        ]);
     }
 
     public function refresh(): void

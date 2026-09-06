@@ -32,6 +32,11 @@ final class TranslationKeysTest extends TestCase
         'widget.metrics.total_hours', 'widget.metrics.retention', 'widget.metrics.crashes',
         'widget.periods.1d', 'widget.periods.7d', 'widget.periods.30d',
         'widget.periods.90d', 'widget.periods.180d', 'widget.periods.365d',
+
+        // Подсказки у графиков «Обзора»: ключ собирается из имени активной вкладки.
+        'help.chart_online', 'help.chart_joins', 'help.chart_heatmap',
+        'help.chart_newcomers', 'help.chart_maps', 'help.chart_reasons',
+        'help.chart_geo', 'help.chart_crashes',
     ];
 
     private static function root(): string
@@ -97,8 +102,9 @@ final class TranslationKeysTest extends TestCase
                 );
 
                 foreach ($matches[1] as $key) {
-                    // Отбрасываем обрубки от конкатенации: они покрыты DYNAMIC_KEYS
-                    if (!str_ends_with($key, '.')) {
+                    // Обрубки от конкатенации ('...tabs.' . $slug) покрыты DYNAMIC_KEYS.
+                    // Разделителем бывает и точка, и подчёркивание — 'help.chart_' . $tab.
+                    if (!str_ends_with($key, '.') && !str_ends_with($key, '_')) {
                         $keys[] = $key;
                     }
                 }

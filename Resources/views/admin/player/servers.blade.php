@@ -2,7 +2,7 @@
 
 <div class="card ch-block">
     <div class="card-header">
-        <h5 class="ch-block__title">{{ __('connecthistory.player.servers_title') }}</h5>
+        <h5 class="ch-block__title">{{ __('connecthistory.player.servers_title') }}<x-popover :content="__('connecthistory.help.player_servers')" /></h5>
     </div>
 
     <div class="card-body">

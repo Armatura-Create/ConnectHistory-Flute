@@ -47,7 +47,7 @@
                     {{ $fmt::number($kills) }} /
                     {{ $fmt::number($deaths) }}
                 </span>
-                <span class="ch-profile__stat-label">{{ __('connecthistory.player.kd') }}</span>
+                <span class="ch-profile__stat-label">{{ __('connecthistory.player.kd') }}<x-popover :content="__('connecthistory.help.kd')" /></span>
             </div>
 
             <div class="ch-profile__stat">
@@ -55,33 +55,33 @@
                 <span class="ch-profile__stat-value">
                     {{ $deaths > 0 ? number_format($kills / $deaths, 2) : '—' }}
                 </span>
-                <span class="ch-profile__stat-label">{{ __('connecthistory.player.kd_ratio') }}</span>
+                <span class="ch-profile__stat-label">{{ __('connecthistory.player.kd_ratio') }}<x-popover :content="__('connecthistory.help.kd_ratio')" /></span>
             </div>
 
             <div class="ch-profile__stat">
                 <span class="ch-profile__stat-value">
                     {{ $kills > 0 ? round((int) ($summary['headshots'] ?? 0) / $kills * 100) . '%' : '—' }}
                 </span>
-                <span class="ch-profile__stat-label">{{ __('connecthistory.player.hs') }}</span>
+                <span class="ch-profile__stat-label">{{ __('connecthistory.player.hs') }}<x-popover :content="__('connecthistory.help.hs')" /></span>
             </div>
 
             <div class="ch-profile__stat">
                 <span class="ch-profile__stat-value">
                     {{ $fmt::number($summary['mvp'] ?? 0) }}
                 </span>
-                <span class="ch-profile__stat-label">{{ __('connecthistory.player.mvp') }}</span>
+                <span class="ch-profile__stat-label">{{ __('connecthistory.player.mvp') }}<x-popover :content="__('connecthistory.help.mvp')" /></span>
             </div>
 
             <div class="ch-profile__stat">
                 <span class="ch-profile__stat-value">{{ $fmt::number($rounds) }}</span>
-                <span class="ch-profile__stat-label">{{ __('connecthistory.player.rounds') }}</span>
+                <span class="ch-profile__stat-label">{{ __('connecthistory.player.rounds') }}<x-popover :content="__('connecthistory.help.rounds')" /></span>
             </div>
 
             <div class="ch-profile__stat">
                 <span class="ch-profile__stat-value">
                     {{ ($summary['ping_avg'] ?? null) !== null ? (int) $summary['ping_avg'] : '—' }}
                 </span>
-                <span class="ch-profile__stat-label">{{ __('connecthistory.player.ping') }}</span>
+                <span class="ch-profile__stat-label">{{ __('connecthistory.player.ping') }}<x-popover :content="__('connecthistory.help.ping')" /></span>
             </div>
 
             @if ((int) ($summary['crashed'] ?? 0) > 0)
@@ -89,7 +89,7 @@
                     <span class="ch-profile__stat-value ch-profile__stat-value--warn">
                         {{ (int) $summary['crashed'] }}
                     </span>
-                    <span class="ch-profile__stat-label">{{ __('connecthistory.player.crashed') }}</span>
+                    <span class="ch-profile__stat-label">{{ __('connecthistory.player.crashed') }}<x-popover :content="__('connecthistory.help.crashed')" /></span>
                 </div>
             @endif
         </div>
