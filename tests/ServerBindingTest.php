@@ -178,4 +178,74 @@ final class ServerBindingTest extends TestCase
             self::assertNotSame([], $rules);
         }
     }
+
+    /**
+     * Селектор сервера на карточке игрока обязан показывать только те серверы,
+     * где у него ЕСТЬ сессии. Иначе выбор ведёт к пустой карточке, и понять
+     * причину нельзя: данных нет не потому, что их нет вообще, а потому что
+     * выбран не тот сервер.
+     */
+    public function testOnlyServersWithPlayerSessionsAreOffered(): void
+    {
+        $bindings = [
+            1 => ['server_id' => 10, 'server' => (object) ['name' => 'Public']],
+            2 => ['server_id' => 20, 'server' => (object) ['name' => 'Retake']],
+            3 => ['server_id' => 30, 'server' => (object) ['name' => 'Awp']],
+        ];
+
+        self::assertSame(
+            [1 => 'Public', 3 => 'Awp'],
+            ServerBinding::optionsForPlayer($bindings, [10, 30])
+        );
+    }
+
+    /**
+     * Ключ привязки — номер сервера в ПАНЕЛИ, а в сессиях лежит номер из конфига
+     * ПЛАГИНА. Совпадать они не обязаны, и путать их нельзя.
+     */
+    public function testMatchingUsesPluginServerIdNotPanelId(): void
+    {
+        $bindings = [
+            7 => ['server_id' => 1, 'server' => (object) ['name' => 'Public']],
+            8 => ['server_id' => 2, 'server' => (object) ['name' => 'Retake']],
+        ];
+
+        // У игрока сессии на сервере плагина №2 — это привязка панели №8
+        self::assertSame([8 => 'Retake'], ServerBinding::optionsForPlayer($bindings, [2]));
+    }
+
+    public function testPlayerWithoutSessionsGetsNoOptions(): void
+    {
+        $bindings = [1 => ['server_id' => 10, 'server' => (object) ['name' => 'Public']]];
+
+        self::assertSame([], ServerBinding::optionsForPlayer($bindings, []));
+        self::assertSame([], ServerBinding::optionsForPlayer([], [10]));
+    }
+
+    /**
+     * Сервер без имени всё равно должен быть выбираемым: иначе игрок,
+     * игравший только на нём, лишается фильтра вовсе.
+     */
+    public function testServerWithoutNameFallsBackToItsId(): void
+    {
+        $bindings = [
+            4 => ['server_id' => 10, 'server' => (object) ['name' => '']],
+            5 => ['server_id' => 20],
+        ];
+
+        self::assertSame([4 => '#4', 5 => '#5'], ServerBinding::optionsForPlayer($bindings, [10, 20]));
+    }
+
+    /**
+     * Привязка без заполненного server_id (0) не должна совпадать с чем попало:
+     * ноль означает «не настроено», а не «любой сервер».
+     */
+    public function testUnconfiguredBindingDoesNotMatchArbitraryServers(): void
+    {
+        $bindings = [1 => ['server_id' => 0, 'server' => (object) ['name' => 'Broken']]];
+
+        self::assertSame([], ServerBinding::optionsForPlayer($bindings, [10, 20]));
+        // ...но совпадает, если в сессиях действительно стоит 0
+        self::assertSame([1 => 'Broken'], ServerBinding::optionsForPlayer($bindings, [0]));
+    }
 }

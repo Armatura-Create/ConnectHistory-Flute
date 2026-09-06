@@ -11,7 +11,10 @@ use Flute\Admin\Platform\Screen;
 use Flute\Admin\Platform\Support\Color;
 use Flute\Modules\ConnectHistory\Admin\Package\ConnectHistoryPackage;
 use Flute\Modules\ConnectHistory\Admin\Package\Screens\Concerns\ResolvesHistory;
+use Flute\Modules\ConnectHistory\Services\HistoryRepository;
 use Flute\Modules\ConnectHistory\Services\PlayerIdentityService;
+use Flute\Modules\ConnectHistory\Services\ServerBinding;
+use Flute\Modules\ConnectHistory\Services\SessionFilter;
 
 /**
  * Карточка игрока: агрегаты, активность, история ников, последние сессии.
@@ -73,9 +76,16 @@ class PlayerCardScreen extends Screen
 
     public function mount(): void
     {
-        // Идентификатор — только цифры. Всё остальное не может быть SteamID64,
-        // и запрос с таким значением делать незачем.
-        $raw = (string) request()->attributes->get('steamid64', request()->input('steamid64', ''));
+        // Откат на собственное свойство обязателен.
+        //
+        // Параметр маршрута приходит только на ПЕРВЫЙ рендер. Фильтр на экране
+        // перерисовывает компонент через yoyo, и в том запросе пути уже нет —
+        // без отката идентификатор становился пустым, а карточка отвечала
+        // «игрок не найден», после чего вернуться было некуда. Своё свойство
+        // компонент проносит через перерисовку сам, причём подписанным HMAC,
+        // так что подменить его нельзя. Тем же приёмом пользуются экраны ядра:
+        // request()->input('id') ?: $this->serverId.
+        $raw = (string) (request()->input('steamid64') ?: $this->steamid64);
         $this->steamid64 = preg_match('/^\d{1,20}\z/', $raw) === 1 ? $raw : '';
 
         $this->bootHistory();
@@ -107,6 +117,12 @@ class PlayerCardScreen extends Screen
             return;
         }
 
+        // Серверы, где у игрока ЕСТЬ сессии, считаются ПЕРВЫМИ: из них строится
+        // селектор, и от них зависит, останется ли выбранный сервер в силе.
+        // Всё остальное грузится уже с окончательной областью видимости.
+        $this->servers = $this->history->playerServers($this->steamid64);
+        $this->narrowServerOptions();
+
         $this->nicknames = $this->history->playerNicknames($this->steamid64);
         $this->summary = $this->history->playerSummary($this->steamid64);
 
@@ -124,9 +140,12 @@ class PlayerCardScreen extends Screen
             'connected' => $this->humanDuration($connected),
             'played' => $this->humanDuration(max(0, $connected - $spectator)),
             'spectator' => $spectator > 0 ? $this->humanDuration($spectator) : '—',
-            'sessions' => (int) ($this->player['sessions_count'] ?? 0),
+            // Число сессий — из той же суженной сводки, а не из ch_players:
+            // иначе при выбранном сервере три времени относились бы к нему,
+            // а счётчик заходов — ко всем серверам сразу.
+            'sessions' => (int) ($this->summary['sessions'] ?? 0),
         ];
-        $this->servers = $this->history->playerServers($this->steamid64);
+
         $this->maps = $this->history->playerMaps($this->steamid64);
         $this->reasons = $this->history->playerReasons($this->steamid64);
         $this->sessions = $this->history->playerSessionsQuery($this->steamid64, $this->withPii);
@@ -144,6 +163,42 @@ class PlayerCardScreen extends Screen
             $this->alts = $this->history->possibleAlts($this->steamid64);
             $this->ipHistory = $this->history->playerIpHistory($this->steamid64);
         }
+    }
+
+    /**
+     * Оставляет в селекторе только серверы, где у игрока есть сессии.
+     *
+     * Выбрать сервер, на котором игрока никогда не было, — значит получить
+     * пустую карточку и не понять причину: данных нет не потому, что их нет
+     * вообще, а потому что выбран не тот сервер.
+     *
+     * Если выбранный сервер в список не попал (перешли по ссылке с чужим
+     * параметром, или игрок там больше не появляется), выбор СНИМАЕТСЯ и данные
+     * берутся по всем серверам. Оставить его значило бы показать пустую карточку
+     * и запереть в ней: селектора без этого пункта не хватит, чтобы вернуться.
+     */
+    protected function narrowServerOptions(): void
+    {
+        $options = ServerBinding::optionsForPlayer(
+            HistoryRepository::bindings(),
+            array_map(static fn (array $row) => (int) $row['server_id'], $this->servers)
+        );
+
+        $this->serverOptions = $options;
+
+        $selected = $this->filter?->serverId;
+
+        if ($selected === null || isset($options[$selected])) {
+            return;
+        }
+
+        $query = request()->query->all();
+        unset($query['server']);
+
+        $this->filter = SessionFilter::fromArray($query, [
+            'max_period_days' => (int) config('connecthistory.max_period_days', 365),
+        ]);
+        $this->history = HistoryRepository::for(null);
     }
 
     public function commandBar(): array

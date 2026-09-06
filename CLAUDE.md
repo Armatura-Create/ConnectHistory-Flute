@@ -115,6 +115,20 @@ GET parameters
   panel cannot know about that setting, so it cannot label the number honestly. From
   sessions all three values follow unambiguously and always add up:
   connected = in game + out of game.
+- **A route parameter only arrives on the FIRST render.** Filters re-render the
+  component through yoyo, and that request carries no path — so a screen bound to a
+  route must fall back to its own property:
+  `request()->input('id') ?: $this->id`, the pattern core screens use. Without the
+  fallback the identifier goes empty and the screen answers "not found", with no way
+  back. The property survives the re-render on its own and is HMAC-signed, so it
+  cannot be tampered with.
+- **A filter must only offer choices that lead somewhere.** The server selector on the
+  player card lists only servers the player actually has sessions on, and a selection
+  that no longer applies is dropped rather than kept — otherwise the card goes empty
+  and the selector, missing that option, cannot bring the user back.
+- **A scope filter narrows the WHOLE screen.** If the metrics stay global while the
+  table narrows, the numbers on one screen stop adding up and nothing on the page
+  reveals why.
 - **Only ONE platform table per screen.** `Layouts\Table` takes the page number and
   the sort column from the shared `page` and `sort` GET parameters, so a second table
   starts paging and sorting along with the first. Short reference lists are rendered

@@ -99,6 +99,44 @@ final class ServerBinding
     }
 
     /**
+     * Оставляет из привязок только те серверы, где у игрока есть сессии.
+     *
+     * Выбрать сервер, на котором игрока никогда не было, — значит получить
+     * пустую карточку и не понять причину: данных нет не потому, что их нет,
+     * а потому что выбран не тот сервер.
+     *
+     * Сопоставление идёт по server_id ПЛАГИНА: ключ привязки — это номер сервера
+     * в панели, а в сессиях лежит номер из конфига плагина, и совпадать они
+     * не обязаны.
+     *
+     * @param array<int, array<string, mixed>> $bindings        привязки панели; форма
+     *                                                           не гарантируется, метод публичный
+     * @param array<int, int>                  $playerServerIds server_id из сессий игрока
+     * @return array<int, string> id сервера панели -> название
+     */
+    public static function optionsForPlayer(array $bindings, array $playerServerIds): array
+    {
+        $known = array_flip(array_map('intval', $playerServerIds));
+        $options = [];
+
+        foreach ($bindings as $fluteServerId => $binding) {
+            $pluginServerId = (int) ($binding['server_id'] ?? 0);
+
+            if (!isset($known[$pluginServerId])) {
+                continue;
+            }
+
+            $name = $binding['server']->name ?? null;
+
+            $options[(int) $fluteServerId] = is_scalar($name) && trim((string) $name) !== ''
+                ? (string) $name
+                : '#' . $fluteServerId;
+        }
+
+        return $options;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private static function decode(mixed $additional): array

@@ -671,16 +671,40 @@ final class HistoryRepository
     /** Активность игрока по дням — для спарклайна в карточке. */
     public function playerActivity(string $steamid64, int $days = 90): array
     {
+        [$where, $params] = $this->playerScope($steamid64);
+
         return $this->fetch(
             "SELECT DATE(`started_at`) AS `bucket`,
                     COUNT(*) AS `sessions`,
                     COALESCE(ROUND(SUM(`duration_seconds`) / 60), 0) AS `minutes`
              FROM `{$this->table('sessions')}`
-             WHERE `steamid64` = ? AND `started_at` >= UTC_TIMESTAMP() - INTERVAL {$this->int($days, 1, 730)} DAY
+             WHERE {$where} AND `started_at` >= UTC_TIMESTAMP() - INTERVAL {$this->int($days, 1, 730)} DAY
              GROUP BY `bucket`
              ORDER BY `bucket`",
-            [$steamid64]
+            $params
         );
+    }
+
+    /**
+     * Условие «этот игрок» с учётом выбранного сервера.
+     *
+     * Выбор сервера на карточке обязан сужать её ЦЕЛИКОМ: если метрики остаются
+     * общими, а таблица сессий сужается, числа на одном экране перестают
+     * сходиться между собой, и заметить это со стороны невозможно.
+     *
+     * @return array{0: string, 1: array<int, mixed>}
+     */
+    private function playerScope(string $steamid64): array
+    {
+        $where = '`steamid64` = ?';
+        $params = [$steamid64];
+
+        if ($this->serverId > 0) {
+            $where .= ' AND `server_id` = ?';
+            $params[] = $this->serverId;
+        }
+
+        return [$where, $params];
     }
 
     /**
@@ -699,8 +723,11 @@ final class HistoryRepository
             ? 'COALESCE(SUM(`' . self::COLUMN_SPECTATOR . '`), 0)'
             : '0';
 
+        [$where, $params] = $this->playerScope($steamid64);
+
         return $this->fetchOne(
-            'SELECT COALESCE(SUM(`kills`), 0) AS `kills`,
+            'SELECT COUNT(*) AS `sessions`,
+                    COALESCE(SUM(`kills`), 0) AS `kills`,
                     COALESCE(SUM(`deaths`), 0) AS `deaths`,
                     COALESCE(SUM(`assists`), 0) AS `assists`,
                     COALESCE(SUM(`headshots`), 0) AS `headshots`,
@@ -717,8 +744,8 @@ final class HistoryRepository
                     COALESCE(SUM(`duration_seconds`), 0) AS `connected_seconds`,
                     {$spectator} AS `spectator_seconds`
              FROM `{$this->table('sessions')}`
-             WHERE `steamid64` = ?",
-            [$steamid64]
+             WHERE {$where}",
+            $params
         );
     }
 
@@ -727,6 +754,12 @@ final class HistoryRepository
      *
      * server_id соединяется со справочником, чтобы показать имя, а не номер:
      * номер сервера плагина ничего не говорит человеку, смотрящему панель.
+     */
+    /**
+     * ВНИМАНИЕ: сознательно НЕ сужается выбранным сервером. Из этого списка
+     * строится сам селектор сервера на карточке — сузив его, мы оставили бы
+     * в выпадающем списке единственный уже выбранный пункт и лишили бы
+     * возможности переключиться обратно.
      */
     public function playerServers(string $steamid64): array
     {
@@ -750,32 +783,36 @@ final class HistoryRepository
     /** Любимые карты игрока по наигранному времени. */
     public function playerMaps(string $steamid64, int $limit = 10): array
     {
+        [$where, $params] = $this->playerScope($steamid64);
+
         return $this->fetch(
             "SELECT `connect_map` AS `bucket`,
                     COUNT(*) AS `sessions`,
                     COALESCE(SUM(`duration_seconds`), 0) AS `total_seconds`
              FROM `{$this->table('sessions')}`
-             WHERE `steamid64` = ? AND `connect_map` <> ''
+             WHERE {$where} AND `connect_map` <> ''
              GROUP BY `connect_map`
              ORDER BY `total_seconds` DESC
              LIMIT {$this->int($limit, 1, 50)}",
-            [$steamid64]
+            $params
         );
     }
 
     /** Как игрок обычно покидает сервер: вышел сам, кикнут, потерял связь. */
     public function playerReasons(string $steamid64, int $limit = 10): array
     {
+        [$where, $params] = $this->playerScope($steamid64);
+
         return $this->fetch(
             "SELECT COALESCE(`disconnect_reason_name`, 'UNKNOWN') AS `bucket`,
                     COUNT(*) AS `sessions`,
                     MAX(`started_at`) AS `last_seen`
              FROM `{$this->table('sessions')}`
-             WHERE `steamid64` = ? AND `ended_at` IS NOT NULL
+             WHERE {$where} AND `ended_at` IS NOT NULL
              GROUP BY `bucket`
              ORDER BY `sessions` DESC
              LIMIT {$this->int($limit, 1, 50)}",
-            [$steamid64]
+            $params
         );
     }
 
@@ -791,6 +828,8 @@ final class HistoryRepository
      */
     public function playerIpHistory(string $steamid64, int $limit = 50): array
     {
+        [$where, $params] = $this->playerScope($steamid64);
+
         return $this->fetch(
             "SELECT `player_ip`, `ip_subnet`, `ip_hash`,
                     MAX(`country_iso`) AS `country_iso`,
@@ -800,11 +839,11 @@ final class HistoryRepository
                     MIN(`started_at`) AS `first_seen`,
                     MAX(`started_at`) AS `last_seen`
              FROM `{$this->table('sessions')}`
-             WHERE `steamid64` = ? AND (`player_ip` IS NOT NULL OR `ip_hash` IS NOT NULL)
+             WHERE {$where} AND (`player_ip` IS NOT NULL OR `ip_hash` IS NOT NULL)
              GROUP BY `player_ip`, `ip_subnet`, `ip_hash`
              ORDER BY `last_seen` DESC
              LIMIT {$this->int($limit, 1, 200)}",
-            [$steamid64]
+            $params
         );
     }
 
