@@ -112,17 +112,17 @@ final class ServerBindingTest extends TestCase
     public function testPrepareNormalises(): void
     {
         self::assertSame(
-            ['server_id' => 2, 'prefix' => 'ch_'],
+            ['server_id' => 2, 'prefix' => 'ch_', 'mirrors' => ''],
             ServerBinding::prepare(['server_id' => '2', 'prefix' => 'плохой префикс'])
         );
 
         self::assertSame(
-            ['server_id' => 0, 'prefix' => 'ch_'],
+            ['server_id' => 0, 'prefix' => 'ch_', 'mirrors' => ''],
             ServerBinding::prepare([])
         );
 
         self::assertSame(
-            ['server_id' => 4, 'prefix' => 'stats_'],
+            ['server_id' => 4, 'prefix' => 'stats_', 'mirrors' => ''],
             ServerBinding::prepare(['server_id' => 4, 'prefix' => 'stats_'])
         );
     }
@@ -247,5 +247,77 @@ final class ServerBindingTest extends TestCase
         self::assertSame([], ServerBinding::optionsForPlayer($bindings, [10, 20]));
         // ...но совпадает, если в сессиях действительно стоит 0
         self::assertSame([1 => 'Broken'], ServerBinding::optionsForPlayer($bindings, [0]));
+    }
+
+    // =====================================================================
+    // Зеркала
+    // =====================================================================
+
+    #[DataProvider('mirrorLines')]
+    public function testMirrorParsing(string $input, array $expected): void
+    {
+        self::assertSame($expected, ServerBinding::parseMirrors($input));
+    }
+
+    public static function mirrorLines(): array
+    {
+        return [
+            'адрес без названия' => ['1.2.3.4', ['1.2.3.4' => '1.2.3.4']],
+            'адрес и название' => ['1.2.3.4 EU', ['1.2.3.4' => 'EU']],
+            'разделитель =' => ['1.2.3.4=EU', ['1.2.3.4' => 'EU']],
+            'разделитель |' => ['1.2.3.4 | EU', ['1.2.3.4' => 'EU']],
+            'название из нескольких слов' => ['1.2.3.4 EU зеркало', ['1.2.3.4' => 'EU зеркало']],
+            'несколько строк' => ["1.2.3.4 A\n5.6.7.8 B", ['1.2.3.4' => 'A', '5.6.7.8' => 'B']],
+            'пустые строки' => ["\n1.2.3.4\n\n", ['1.2.3.4' => '1.2.3.4']],
+            'комментарий' => ["# заметка\n1.2.3.4", ['1.2.3.4' => '1.2.3.4']],
+            'IPv6' => ['2001:db8::1 EU', ['2001:db8::1' => 'EU']],
+            'не адрес' => ['зеркало.example.com', []],
+            'подсеть не адрес' => ['1.2.3.0/24', []],
+            'мусор' => ['1.2.3', []],
+            'пусто' => ['', []],
+        ];
+    }
+
+    /**
+     * Хост вместо адреса — частая опечатка, и молча превратить её в адрес
+     * нельзя: подпись «зеркало» на чужой строке хуже её отсутствия.
+     */
+    public function testInvalidLinesAreDroppedNotGuessed(): void
+    {
+        self::assertSame(
+            ['9.9.9.9' => '9.9.9.9'],
+            ServerBinding::parseMirrors("mirror.example.com EU\n9.9.9.9")
+        );
+    }
+
+    public function testMirrorListIsCapped(): void
+    {
+        $lines = [];
+        for ($i = 1; $i <= ServerBinding::MAX_MIRRORS + 20; $i++) {
+            $lines[] = '10.0.' . intdiv($i, 256) . '.' . ($i % 256);
+        }
+
+        self::assertCount(
+            ServerBinding::MAX_MIRRORS,
+            ServerBinding::parseMirrors(implode("\n", $lines))
+        );
+    }
+
+    /** Сохраняется нормализованный текст, чтобы чтение не разбирало мусор заново. */
+    public function testPrepareNormalisesMirrors(): void
+    {
+        $prepared = ServerBinding::prepare([
+            'server_id' => 1,
+            'mirrors' => "  1.2.3.4   EU  \nне адрес\n5.6.7.8",
+        ]);
+
+        self::assertSame("1.2.3.4 EU\n5.6.7.8", $prepared['mirrors']);
+    }
+
+    public function testMirrorsSurviveReadAdditional(): void
+    {
+        $result = ServerBinding::readAdditional('{"server_id":1,"mirrors":"1.2.3.4 EU"}');
+
+        self::assertSame(['1.2.3.4' => 'EU'], ServerBinding::parseMirrors($result['mirrors']));
     }
 }

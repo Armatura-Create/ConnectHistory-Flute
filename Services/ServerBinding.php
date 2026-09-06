@@ -17,6 +17,9 @@ final class ServerBinding
 {
     public const DEFAULT_PREFIX = 'ch_';
 
+    /** Больше зеркал в списке не бывает, а разбор текста из формы должен быть ограничен. */
+    public const MAX_MIRRORS = 50;
+
     /**
      * Единственный способ прочитать additional.
      *
@@ -25,7 +28,7 @@ final class ServerBinding
      * и та же структура. Прошлый модуль читал ->sid у значения, которое при
      * пустом поле было массивом, и падал с "Attempt to read property on array".
      *
-     * @return array{server_id: int, prefix: string}
+     * @return array{server_id: int, prefix: string, mirrors: string}
      */
     public static function readAdditional(mixed $additional): array
     {
@@ -35,9 +38,12 @@ final class ServerBinding
         // почему перенесённое подключение выглядит пустым.
         $serverId = $decoded['server_id'] ?? $decoded['sid'] ?? 0;
 
+        $mirrors = $decoded['mirrors'] ?? '';
+
         return [
             'server_id' => is_scalar($serverId) ? (int) $serverId : 0,
             'prefix' => self::sanitizePrefix($decoded['prefix'] ?? null),
+            'mirrors' => is_scalar($mirrors) ? (string) $mirrors : '',
         ];
     }
 
@@ -62,16 +68,75 @@ final class ServerBinding
      * Нормализация формы настроек подключения перед сохранением.
      *
      * @param array<string, mixed> $data
-     * @return array{server_id: int, prefix: string}
+     * @return array{server_id: int, prefix: string, mirrors: string}
      */
     public static function prepare(array $data): array
     {
         $serverId = $data['server_id'] ?? 0;
 
+        // Список зеркал сохраняется уже нормализованным: мусорные строки
+        // отбрасываются на входе, а не при каждом чтении.
+        $mirrors = [];
+        foreach (self::parseMirrors($data['mirrors'] ?? null) as $ip => $label) {
+            $mirrors[] = $ip === $label ? $ip : $ip . ' ' . $label;
+        }
+
         return [
             'server_id' => is_scalar($serverId) ? (int) $serverId : 0,
             'prefix' => self::sanitizePrefix($data['prefix'] ?? null),
+            'mirrors' => implode("\n", $mirrors),
         ];
+    }
+
+    /**
+     * Разбор списка зеркал из текстового поля: строка на зеркало,
+     * «адрес» либо «адрес название» (разделитель — пробел, = или |).
+     *
+     * Зачем вообще: трафик через зеркало проксируется, поэтому игровой сервер
+     * видит адрес зеркала, а не игрока. Без этого списка такие сессии выглядят
+     * как десятки разных людей с одного адреса — и страна в них тоже не игрока,
+     * а зеркала.
+     *
+     * Совпадение только точное: зеркало — постоянный хост с известным адресом,
+     * подсети тут ничего не добавляют, а ошибиться дают легко.
+     *
+     * @return array<string, string> адрес -> название (по умолчанию сам адрес)
+     */
+    public static function parseMirrors(mixed $raw): array
+    {
+        if (is_array($raw)) {
+            $raw = implode("\n", array_filter($raw, 'is_scalar'));
+        }
+
+        if (!is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $mirrors = [];
+
+        foreach (preg_split('/[\r\n]+/', $raw) ?: [] as $line) {
+            $line = trim($line);
+
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
+
+            $parts = preg_split('/\s*[=|]\s*|\s+/', $line, 2) ?: [];
+            $ip = $parts[0] ?? '';
+
+            if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+                continue;
+            }
+
+            $label = trim($parts[1] ?? '');
+            $mirrors[$ip] = $label !== '' ? mb_substr($label, 0, 64) : $ip;
+
+            if (count($mirrors) >= self::MAX_MIRRORS) {
+                break;
+            }
+        }
+
+        return $mirrors;
     }
 
     /**
@@ -95,6 +160,7 @@ final class ServerBinding
         return [
             'server_id' => ['required', 'numeric'],
             'prefix' => ['nullable', 'string', 'max-str-len:16'],
+            'mirrors' => ['nullable', 'string', 'max-str-len:2000'],
         ];
     }
 

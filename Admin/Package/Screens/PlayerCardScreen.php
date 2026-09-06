@@ -32,7 +32,11 @@ class PlayerCardScreen extends Screen
 
     public ?string $permission = ConnectHistoryPackage::PERMISSION_VIEW;
 
-    public string $steamid64 = '';
+    /**
+     * Подписывается HMAC ядром (см. signedProperties()), поэтому объявлен
+     * nullable: при неудачной проверке подписи ядро обнуляет такие свойства.
+     */
+    public ?string $steamid64 = null;
 
     /** @var array<string, mixed>|null */
     public ?array $player = null;
@@ -74,39 +78,48 @@ class PlayerCardScreen extends Screen
 
     protected bool $withPii = false;
 
+    /**
+     * steamid64 не подходит под автоопределение ядра (оно берёт свойства с
+     * именем `id` или `*Id`), поэтому объявляем подпись явно. Без этого ядро
+     * не печатает скрытое поле, yoyo не присылает идентификатор обратно, и
+     * любой фильтр на карточке превращал её в «игрок не найден».
+     *
+     * @return string[]
+     */
+    protected function signedProperties(): array
+    {
+        return ['steamid64'];
+    }
+
     public function mount(): void
     {
-        // Откат на собственное свойство обязателен.
-        //
-        // Параметр маршрута приходит только на ПЕРВЫЙ рендер. Фильтр на экране
-        // перерисовывает компонент через yoyo, и в том запросе пути уже нет —
-        // без отката идентификатор становился пустым, а карточка отвечала
-        // «игрок не найден», после чего вернуться было некуда. Своё свойство
-        // компонент проносит через перерисовку сам, причём подписанным HMAC,
-        // так что подменить его нельзя. Тем же приёмом пользуются экраны ядра:
-        // request()->input('id') ?: $this->serverId.
-        $raw = (string) (request()->input('steamid64') ?: $this->steamid64);
-        $this->steamid64 = preg_match('/^\d{1,20}\z/', $raw) === 1 ? $raw : '';
+        // Параметр маршрута приходит только на ПЕРВЫЙ рендер: перерисовка через
+        // yoyo идёт на общий адрес компонента, пути в ней уже нет. Свойство
+        // переживает перерисовку только потому, что объявлено в
+        // signedProperties() — ядро печатает его скрытым полем в base.blade.php
+        // и восстанавливает из запроса, проверив HMAC.
+        $raw = (string) (request()->input('steamid64') ?: $this->steamid64 ?? '');
+        $this->steamid64 = $steamid = preg_match('/^\d{1,20}\z/', $raw) === 1 ? $raw : '';
 
         $this->bootHistory();
         $this->withPii = $this->canSeePii();
 
-        if (!$this->configured || $this->steamid64 === '') {
+        if (!$this->configured || $steamid === '') {
             $this->name = __('connecthistory.player.not_found');
 
             return;
         }
 
-        $this->player = $this->history->player($this->steamid64);
+        $this->player = $this->history->player($steamid);
 
         $fallbackName = $this->player['last_nickname'] ?? null;
         $this->identity = app(PlayerIdentityService::class)->resolve(
-            $this->steamid64,
+            $steamid,
             is_scalar($fallbackName) ? (string) $fallbackName : null
         );
 
         $this->name = $this->identity['name'];
-        $this->description = __('connecthistory.player.description', ['steamid' => $this->steamid64]);
+        $this->description = __('connecthistory.player.description', ['steamid' => $steamid]);
 
         breadcrumb()
             ->add(__('def.admin_panel'), (string) url('/admin'))
@@ -120,11 +133,11 @@ class PlayerCardScreen extends Screen
         // Серверы, где у игрока ЕСТЬ сессии, считаются ПЕРВЫМИ: из них строится
         // селектор, и от них зависит, останется ли выбранный сервер в силе.
         // Всё остальное грузится уже с окончательной областью видимости.
-        $this->servers = $this->history->playerServers($this->steamid64);
+        $this->servers = $this->history->playerServers($steamid);
         $this->narrowServerOptions();
 
-        $this->nicknames = $this->history->playerNicknames($this->steamid64);
-        $this->summary = $this->history->playerSummary($this->steamid64);
+        $this->nicknames = $this->history->playerNicknames($steamid);
+        $this->summary = $this->history->playerSummary($steamid);
 
         // Три времени считаются ИЗ СЕССИЙ, а не из ch_players.total_seconds.
         //
@@ -146,11 +159,11 @@ class PlayerCardScreen extends Screen
             'sessions' => (int) ($this->summary['sessions'] ?? 0),
         ];
 
-        $this->maps = $this->history->playerMaps($this->steamid64);
-        $this->reasons = $this->history->playerReasons($this->steamid64);
-        $this->sessions = $this->history->playerSessionsQuery($this->steamid64, $this->withPii);
+        $this->maps = $this->history->playerMaps($steamid);
+        $this->reasons = $this->history->playerReasons($steamid);
+        $this->sessions = $this->history->playerSessionsQuery($steamid, $this->withPii);
 
-        $activity = $this->history->playerActivity($this->steamid64);
+        $activity = $this->history->playerActivity($steamid);
         $this->activityLabels = $this->buckets($activity);
         $this->activity = [[
             'name' => __('connecthistory.player.minutes_played'),
@@ -160,8 +173,8 @@ class PlayerCardScreen extends Screen
         // Персональные блоки — только за отдельным правом: без него эти запросы
         // не выполняются вовсе, а не прячутся в вёрстке.
         if ($this->withPii) {
-            $this->alts = $this->history->possibleAlts($this->steamid64);
-            $this->ipHistory = $this->history->playerIpHistory($this->steamid64);
+            $this->alts = $this->history->possibleAlts($steamid);
+            $this->ipHistory = $this->history->playerIpHistory($steamid);
         }
     }
 
@@ -192,7 +205,7 @@ class PlayerCardScreen extends Screen
             return;
         }
 
-        $query = request()->query->all();
+        $query = request()->input();
         unset($query['server']);
 
         $this->filter = SessionFilter::fromArray($query, [
@@ -203,18 +216,18 @@ class PlayerCardScreen extends Screen
 
     public function commandBar(): array
     {
-        if ($this->steamid64 === '') {
+        if (($this->steamid64 ?? '') === '') {
             return [];
         }
 
         $bar = [
             Button::make(__('connecthistory.player.open_steam'))
                 ->icon('ph.regular.arrow-square-out')
-                ->href(PlayerIdentityService::steamCommunityUrl($this->steamid64))
+                ->href(PlayerIdentityService::steamCommunityUrl((string) $this->steamid64))
                 ->type(Color::OUTLINE_DEFAULT),
             Button::make(__('connecthistory.player.all_sessions'))
                 ->icon('ph.regular.clock-counter-clockwise')
-                ->href((string) url('/admin/connect-history/sessions')->addParams(['search' => $this->steamid64])),
+                ->href((string) url('/admin/connect-history/sessions')->addParams(['search' => (string) $this->steamid64])),
         ];
 
         if (($this->identity['user_id'] ?? null) !== null) {
@@ -304,7 +317,10 @@ class PlayerCardScreen extends Screen
             // с отступами панели.
             $this->withPii
                 ? LayoutFactory::columns([
-                    LayoutFactory::view('connecthistory::admin.player.ip', ['rows' => $this->ipHistory]),
+                    LayoutFactory::view('connecthistory::admin.player.ip', [
+                        'rows' => $this->ipHistory,
+                        'mirrors' => $this->history->mirrors(),
+                    ]),
                     LayoutFactory::view('connecthistory::admin.player.alts', ['rows' => $this->alts]),
                 ])
                 : LayoutFactory::view('connecthistory::admin.pii-hidden'),
@@ -312,7 +328,7 @@ class PlayerCardScreen extends Screen
             // Единственная таблица на экране — значит page и sort принадлежат ей
             LayoutFactory::table('sessions', $this->sessionColumns())
                 ->title(__('connecthistory.player.sessions_title'))
-                ->exportable(true, 'player-' . $this->steamid64)
+                ->exportable(true, 'player-' . (string) $this->steamid64)
                 ->perPage(20)
                 ->empty('ph.regular.clock-counter-clockwise', __('connecthistory.sessions.empty')),
         ]);
@@ -367,8 +383,12 @@ class PlayerCardScreen extends Screen
 
         if ($this->withPii) {
             $columns[] = TD::make('player_ip', __('connecthistory.sessions.column_ip'))
-                ->width('150px')
-                ->defaultHidden();
+                ->width('180px')
+                ->defaultHidden()
+                ->render(fn (array $row) => view('connecthistory::admin.cells.ip', [
+                    'ip' => $row['player_ip'] ?? null,
+                    'mirror' => $this->mirrorLabel($row['player_ip'] ?? null),
+                ])->render());
         }
 
         return $columns;

@@ -38,7 +38,10 @@ trait ResolvesHistory
     protected function bootHistory(): void
     {
         $this->serverOptions = HistoryRepository::serverOptions();
-        $this->filter = SessionFilter::fromArray(request()->query->all(), [
+        // input() без ключа — это attributes + query + body, как читает ядро.
+        // Перерисовка через yoyo приходит POST-ом, и значения фильтров лежат
+        // в теле запроса: одна только query их не видит и фильтры сбрасываются.
+        $this->filter = SessionFilter::fromArray(request()->input(), [
             'max_period_days' => (int) config('connecthistory.max_period_days', 365),
             'default_period_days' => (int) config('connecthistory.default_period_days', 7),
             'short_session_seconds' => (int) config('connecthistory.short_session_seconds', 60),
@@ -46,6 +49,22 @@ trait ResolvesHistory
 
         $this->history = HistoryRepository::for($this->filter->serverId);
         $this->configured = $this->history !== null;
+    }
+
+    /**
+     * Название зеркала, через которое пришло подключение, или null.
+     *
+     * Зеркало проксирует трафик, поэтому в сессии стоит адрес зеркала, а не
+     * игрока: без подписи такая строка выглядит как чужой человек из чужой
+     * страны. Список задаётся в настройках подключения («Серверы» -> сервер).
+     */
+    protected function mirrorLabel(mixed $ip): ?string
+    {
+        if (!is_string($ip) || $ip === '' || $this->history === null) {
+            return null;
+        }
+
+        return $this->history->mirrors()[$ip] ?? null;
     }
 
     /**

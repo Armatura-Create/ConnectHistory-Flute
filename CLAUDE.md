@@ -115,17 +115,34 @@ GET parameters
   panel cannot know about that setting, so it cannot label the number honestly. From
   sessions all three values follow unambiguously and always add up:
   connected = in game + out of game.
-- **A route parameter only arrives on the FIRST render.** Filters re-render the
-  component through yoyo, and that request carries no path — so a screen bound to a
-  route must fall back to its own property:
-  `request()->input('id') ?: $this->id`, the pattern core screens use. Without the
-  fallback the identifier goes empty and the screen answers "not found", with no way
-  back. The property survives the re-render on its own and is HMAC-signed, so it
-  cannot be tampered with.
+- **A route parameter only arrives on the FIRST render, and a property survives the
+  re-render only if it is SIGNED.** Filters re-render the component through yoyo, and
+  that request carries no path. Core restores public properties in `Screen::boot()`
+  from the request body — but the only ones that reach the body are those core printed
+  as hidden inputs in `base.blade.php`, i.e. exactly `resolveSignedProperties()`.
+  Auto-detection covers properties named `id` or `*Id` typed int|string and NOTHING
+  else, so `steamid64` must be declared in `signedProperties()` by hand. Miss that and
+  the identifier goes empty on the first filter click: the card answers "not found"
+  and the server selector — narrowed further down `mount()` — falls back to listing
+  every server, with no way back. Signed properties are nulled when the HMAC fails, so
+  they must be nullable. Covered by `ScreenStateTest`.
+- **Read the request with `request()->input()`, never `request()->query->all()`.**
+  A yoyo re-render arrives as a POST: the filter values sit in the body, and the query
+  string is empty. Reading only the query silently resets every filter on the second
+  render. `input()` merges route attributes, query and body — the same source core
+  screens read.
 - **A filter must only offer choices that lead somewhere.** The server selector on the
   player card lists only servers the player actually has sessions on, and a selection
   that no longer applies is dropped rather than kept — otherwise the card goes empty
   and the selector, missing that option, cannot bring the user back.
+- **A mirrored connection is the mirror's address, not the player's.** A mirror
+  proxies traffic, so `player_ip`, `country_iso` and `city` describe the mirror. The
+  addresses are configured per binding (Servers -> server -> ConnectHistory ->
+  "Mirror IPs") and matched exactly — a mirror is a fixed host, and subnet matching
+  only adds ways to mislabel someone else's row. Mirror sessions are excluded from
+  alt-account detection on BOTH sides of the join: otherwise everyone behind the
+  mirror looks like an alt of everyone. Exclusion works through `player_ip` only —
+  `ip_hash` is salted by the plugin and the panel does not have the salt.
 - **A scope filter narrows the WHOLE screen.** If the metrics stay global while the
   table narrows, the numbers on one screen stop adding up and nothing on the page
   reveals why.

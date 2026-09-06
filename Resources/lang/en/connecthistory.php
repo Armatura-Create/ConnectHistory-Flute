@@ -271,6 +271,12 @@ return [
         'server_id_help' => 'The ServerId value from the plugin Settings.json on this server. It must differ between servers.',
         'prefix' => 'Table prefix',
         'prefix_help' => 'Database.TablePrefix from the plugin config, ch_ by default. Latin letters, digits and underscore only.',
+        'mirrors' => 'Mirror IPs',
+        'mirrors_help' => 'One address per line; add a name after a space: <code>185.12.34.56 EU mirror</code>. A mirror proxies traffic, so the server records the mirror address instead of the player\'s — those connections get labelled, and a shared address stops counting as an alt-account signal. Requires Collect.PlayerIp to be enabled.',
+    ],
+
+    'mirror' => [
+        'tooltip' => 'Connection came through your mirror: the address and country in this row belong to the mirror, not the player.',
     ],
 
     'pii' => [

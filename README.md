@@ -58,6 +58,22 @@ so a widget on a busy page does not turn into a stream of database hits.
 Multiple servers share one plugin database and are told apart by `ServerId`: add a
 connection per panel server; the database name will be the same for all of them.
 
+### Mirrors
+
+If players reach the server through a proxy of yours, list its addresses in
+**Mirror IPs** on the same connection form — one per line, optionally followed by a
+name:
+
+```
+185.12.34.56 EU mirror
+203.0.113.9  Asia mirror
+```
+
+A mirror proxies traffic, so the game server records the mirror's address and
+country instead of the player's. Those sessions are then labelled in the panel, and
+a shared address stops counting as an alt-account signal. Requires `Collect.PlayerIp`
+in the plugin config and the `admin.connecthistory.pii` permission.
+
 ### Database user
 
 The panel never writes:

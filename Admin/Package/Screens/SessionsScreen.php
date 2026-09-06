@@ -275,9 +275,13 @@ class SessionsScreen extends Screen
         // Без права pii их нет в запросе — прятать в вёрстке нечего.
         if ($this->withPii) {
             $columns[] = TD::make('player_ip', __('connecthistory.sessions.column_ip'))
-                ->width('150px')
+                ->width('180px')
                 ->defaultHidden()
-                ->popover(__('connecthistory.sessions.column_ip_help'));
+                ->popover(__('connecthistory.sessions.column_ip_help'))
+                ->render(fn (array $row) => view('connecthistory::admin.cells.ip', [
+                    'ip' => $row['player_ip'] ?? null,
+                    'mirror' => $this->mirrorLabel($row['player_ip'] ?? null),
+                ])->render());
 
             $columns[] = TD::make('city', __('connecthistory.sessions.column_city'))
                 ->width('150px')

@@ -14,6 +14,21 @@
     font-size: 11px;
 }
 
+// Зеркало — не просто пометка, а причина не верить адресу и стране в строке,
+// поэтому цветом отделено от нейтральных меток.
+.ch-chip--mirror {
+    background: var(--primary-transp-10, var(--transp-05));
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.ch-ip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
 .ch-hint {
     display: inline-flex;
     align-items: center;

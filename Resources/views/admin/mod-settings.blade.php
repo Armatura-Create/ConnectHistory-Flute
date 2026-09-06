@@ -18,4 +18,13 @@
         </x-admin::forms.field>
         <small class="text-muted">{{ __('connecthistory.settings.prefix_help') }}</small>
     </div>
+
+    <div class="col-12">
+        <x-admin::forms.field name="mirrors" label="{{ __('connecthistory.settings.mirrors') }}">
+            <x-admin::fields.textarea name="mirrors" id="mirrors" rows="4"
+                value="{{ request()->input('mirrors', $settings['mirrors'] ?? '') }}"
+                placeholder="185.12.34.56 EU mirror&#10;203.0.113.9 Asia mirror" />
+        </x-admin::forms.field>
+        <small class="text-muted">{!! __('connecthistory.settings.mirrors_help') !!}</small>
+    </div>
 </div>

@@ -15,6 +15,11 @@
                          независимо от хеша, тогда остаётся только подсеть --}}
                     <code class="ch-mono">{{ $row['player_ip'] ?: ($row['ip_subnet'] ?: '—') }}</code>
 
+                    @if (!empty($mirrors[$row['player_ip'] ?? '']))
+                        <span class="ch-chip ch-chip--mirror"
+                            title="{{ __('connecthistory.mirror.tooltip') }}">{{ $mirrors[$row['player_ip']] }}</span>
+                    @endif
+
                     @if (!empty($row['country_iso']))
                         <span class="ch-chip">{{ $row['country_iso'] }}</span>
                     @endif

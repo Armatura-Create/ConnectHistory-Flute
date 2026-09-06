@@ -55,13 +55,21 @@ final class HistoryRepository
     /**
      * @param string $database Имя подключения в конфиге панели
      * @param string $prefix   Префикс таблиц плагина (уже проверен белым списком)
-     * @param int    $serverId server_id плагина; 0 — все серверы этой базы
+     * @param int                   $serverId server_id плагина; 0 — все серверы этой базы
+     * @param array<string, string> $mirrors  адреса зеркал -> название
      */
     public function __construct(
         private readonly string $database,
         private readonly string $prefix,
         private readonly int $serverId,
+        private readonly array $mirrors = [],
     ) {
+    }
+
+    /** @return array<string, string> адрес зеркала -> название */
+    public function mirrors(): array
+    {
+        return $this->mirrors;
     }
 
     // =====================================================================
@@ -78,7 +86,7 @@ final class HistoryRepository
      * раздел просто молча считает себя ненастроенным. Свойства сущности типизованы,
      * и PHPStan проверяет их против настоящего класса Flute.
      *
-     * @return array<int, array{server: object, database: string, prefix: string, server_id: int}>
+     * @return array<int, array{server: object, database: string, prefix: string, server_id: int, mirrors: array<string, string>}>
      */
     public static function bindings(): array
     {
@@ -120,6 +128,7 @@ final class HistoryRepository
                 'database' => (string) $connection->dbname,
                 'prefix' => $additional['prefix'],
                 'server_id' => $additional['server_id'],
+                'mirrors' => ServerBinding::parseMirrors($additional['mirrors']),
             ];
         }
 
@@ -214,7 +223,12 @@ final class HistoryRepository
         if ($fluteServerId !== null && isset($bindings[$fluteServerId])) {
             $binding = $bindings[$fluteServerId];
 
-            return new self($binding['database'], $binding['prefix'], $binding['server_id']);
+            return new self(
+                $binding['database'],
+                $binding['prefix'],
+                $binding['server_id'],
+                $binding['mirrors']
+            );
         }
 
         $first = reset($bindings);
@@ -223,7 +237,11 @@ final class HistoryRepository
         return new self(
             $first['database'],
             $first['prefix'],
-            count($bindings) === 1 ? $first['server_id'] : 0
+            count($bindings) === 1 ? $first['server_id'] : 0,
+            // Без выбранного сервера в выдаче сессии всех серверов, поэтому
+            // и зеркала нужны все: иначе адрес был бы подписан на одном экране
+            // и не подписан на другом.
+            array_merge(...array_column($bindings, 'mirrors'))
         );
     }
 
@@ -857,6 +875,24 @@ final class HistoryRepository
     public function possibleAlts(string $steamid64, int $days = 90, int $limit = 50): array
     {
         $window = $this->int($days, 1, 730);
+        $params = [$steamid64];
+
+        // Сессии через зеркало исключаются с обеих сторон соединения.
+        //
+        // Иначе совпадение адреса означает лишь «оба зашли через одно зеркало»,
+        // и в мультиаккаунты попадают все игроки сервера сразу. Отсечь можно
+        // только по player_ip: ip_hash солится плагином, соли у панели нет.
+        $mirrorFilter = '';
+
+        if ($this->mirrors !== []) {
+            $ips = array_keys($this->mirrors);
+            $holes = implode(', ', array_fill(0, count($ips), '?'));
+
+            $mirrorFilter = "\n               AND (s1.`player_ip` IS NULL OR s1.`player_ip` NOT IN ({$holes}))"
+                . "\n               AND (s2.`player_ip` IS NULL OR s2.`player_ip` NOT IN ({$holes}))";
+
+            $params = array_merge($params, $ips, $ips);
+        }
 
         return $this->fetch(
             "SELECT s2.`steamid64`,
@@ -870,11 +906,11 @@ final class HistoryRepository
              WHERE s1.`steamid64` = ?
                AND s1.`ip_hash` IS NOT NULL
                AND s1.`started_at` >= UTC_TIMESTAMP() - INTERVAL {$window} DAY
-               AND s2.`started_at` >= UTC_TIMESTAMP() - INTERVAL {$window} DAY
+               AND s2.`started_at` >= UTC_TIMESTAMP() - INTERVAL {$window} DAY{$mirrorFilter}
              GROUP BY s2.`steamid64`
              ORDER BY `sessions` DESC
              LIMIT {$this->int($limit, 1, 200)}",
-            [$steamid64]
+            $params
         );
     }
 
